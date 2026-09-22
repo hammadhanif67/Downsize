@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "@fontsource-variable/instrument-sans/wght.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+
+/* Design tokens (spec §9.1), kept as plain custom properties — not only
+   Tailwind theme keys — because one-off drawing code (the ruler-tick frame)
+   reads these directly via var(--rule) etc. rather than through a class. */
+:root {
+  --paper: #f4f5f7;
+  --surface: #ffffff;
+  --ink: #15191f;
+  --ink-muted: #5e6672;
+  --rule: #d9dee5;
+  --accent: #1b4fd8;
+  --danger: #b3261e;
+}
+
+/* Bridge the tokens into Tailwind's theme so utilities are generated from
+   them: bg-paper, text-ink-muted, border-rule, outline-accent, etc. */
+@theme {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Type scale from §9.1 — 13/15/18/24/32, named by role rather than size
+     so call sites read as intent (text-body, text-h1...) not magic px. */
+  --text-caption: 13px;
+  --text-body: 15px;
+  --text-body--line-height: 1.55;
+  --text-h3: 18px;
+  --text-h2: 24px;
+  --text-h1: 32px;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-size: var(--text-body);
+    line-height: 1.55;
+  }
+
+  /* §9.1 amended (step 7 revision): the "4px radius on controls" line is
+     revoked. Zero radius everywhere, set globally rather than trusted to
+     every component remembering to omit `rounded`. */
+  * {
+    border-radius: 0;
+  }
+}
+
+/* The one @apply pattern this app actually needed, of the two or three
+   §16 allows: a shared focus ring, reused everywhere something is
+   focusable. A ".panel" card utility was reserved in step 1 but never
+   earned its place — §9.1's flat, no-card-grid direction (step 7) means
+   nothing in the app groups controls inside a bordered/shadowed container,
+   so there was never a second repeated pattern to justify one. */
+@layer components {
+  .focus-ring {
+    @apply outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
