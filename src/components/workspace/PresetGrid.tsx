@@ -52,6 +52,10 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
     let next: number | null = null;
     if (e.key === 'ArrowRight') next = index === last ? 0 : index + 1;
     if (e.key === 'ArrowLeft') next = index === 0 ? last : index - 1;
+    // Three to a row, so up/down is ±3. Wrapping keeps it defined at the
+    // edges: from the top row, Up lands on the cell below it.
+    if (e.key === 'ArrowDown') next = (index + 3) % PLATFORMS.length;
+    if (e.key === 'ArrowUp') next = (index - 3 + PLATFORMS.length) % PLATFORMS.length;
     if (e.key === 'Home') next = 0;
     if (e.key === 'End') next = last;
     if (next === null) return;
@@ -61,11 +65,14 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
 
   return (
     <div>
-      {/* Three across on a phone, six from sm up. Six across at 390px
-          leaves ~57px a cell, which truncates "Instagram" and "LinkedIn"
-          — trading the old size-label truncation for a new platform-label
-          one. Two rows of three keeps every name whole. */}
-      <div className="grid grid-cols-3 border-t border-l border-rule sm:grid-cols-6">
+      {/* Three across at every width. Six across doesn't fit at any of
+          them: the controls column is ~408px even at 1440, so six cells
+          give 59px of text width and "Instagram" needs 60.5px at 13px.
+          One row that clips is worse than two rows that don't, and a
+          single arrangement means there's no breakpoint where the row
+          silently reflows. Three across gives 136px a cell — every label
+          clears with room to spare. */}
+      <div className="grid grid-cols-3 border-t border-l border-rule">
         {PLATFORMS.map((platform, index) => {
           const Icon = ICONS[platform.id];
           const isOpen = openPlatform === platform.id;
