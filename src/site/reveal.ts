@@ -90,37 +90,61 @@ export function initReveal() {
     }
   });
 
+  // Elements still waiting. Tracked separately from the observer because
+  // some of them have to be resolved without ever having intersected —
+  // see the sweep below.
+  const pending = new Set<HTMLElement>();
+
+  function settle(el: HTMLElement, animate: boolean) {
+    if (animate) {
+      el.classList.add('reveal-in');
+    } else {
+      // Disarm outright rather than animating: the element is off the top
+      // of the screen, so there is nothing to watch, and leaving the
+      // animation to play means it fires later when the reader scrolls
+      // back up to something they have already passed.
+      el.classList.remove('reveal-armed');
+      el.style.removeProperty('--reveal-from');
+      el.style.removeProperty('--reveal-duration');
+      el.style.removeProperty('--reveal-delay');
+    }
+    observer.unobserve(el);
+    pending.delete(el);
+  }
+
   const observer = new IntersectionObserver(
     (entries) => {
+      // An instant scroll — a nav anchor, a fragment URL, Home/End, a
+      // restored scroll position — moves the page between two rendered
+      // frames. Everything it skips is never intersecting at any moment
+      // the browser samples, so no entry is ever delivered for it, and
+      // it sits at opacity 0 above the viewport for good. Measured:
+      // jumping to the bottom of the page left 54 elements blank.
+      //
+      // So each callback first clears out anything that is now fully
+      // above the viewport, whether or not it was ever reported. This
+      // only reads rects for elements still waiting, and that set only
+      // shrinks.
+      for (const el of pending) {
+        if (el.getBoundingClientRect().bottom < 0) settle(el, false);
+      }
       for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        (entry.target as HTMLElement).classList.add('reveal-in');
-        observer.unobserve(entry.target);
+        if (entry.isIntersecting) settle(entry.target as HTMLElement, true);
       }
     },
     { threshold: THRESHOLD },
   );
 
   const fold = window.innerHeight;
-  const armed: HTMLElement[] = [];
   for (const [el, pattern] of targets) {
     // Already on screen: leave it exactly as the browser rendered it.
     // Arming it here is what would cause a visible flash — the element
-    // would drop to opacity 0 and fade back in for no reason.
+    // would drop to opacity 0 and fade back in for no reason. This is
+    // also what keeps the H1 and the tool, the LCP candidates, off the
+    // animation path entirely.
     if (el.getBoundingClientRect().top < fold) continue;
     arm(el, pattern);
-    armed.push(el);
-  }
-
-  // Commit opacity: 0 BEFORE the transition exists. Without this the
-  // browser sees the new opacity and the new transition in one recalc and
-  // animates the element out over 400ms — the reveal would be preceded by
-  // a fade to nothing. One forced reflow for the whole page, not one per
-  // element.
-  void root.offsetHeight;
-
-  for (const el of armed) {
-    el.classList.add('reveal-ready');
+    pending.add(el);
     observer.observe(el);
   }
 }

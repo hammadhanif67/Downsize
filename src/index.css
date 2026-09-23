@@ -299,35 +299,72 @@
   }
 }
 
+/* The stagger is encoded as a HOLD inside each keyframe rather than as
+   animation-delay, which means none of these needs a fill mode.
+
+   The obvious way to write this is one keyframe plus animation-delay and
+   `both` — but `both` is backwards fill, so it applies the 0% frame
+   during the delay, and an element is then held at opacity 0 by the
+   stylesheet before its animation has started. That makes the whole
+   article's visibility conditional on an animation running, which is the
+   same failure the scroll reveals are built to avoid.
+
+   With the hold inside the keyframe there is no fill and no delay: the
+   animation runs from t=0, and the value outside it is the element's
+   normal one. If animations never run, everything is simply visible.
+   Percentages are the old delay over the new total — 80/380 and
+   160/460 — so the timing on screen is unchanged. */
+@keyframes downsize-fade-in-2 {
+  0%,
+  21.05% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes downsize-fade-in-3 {
+  0%,
+  34.78% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 250ms hold + 400ms rise = 650ms; 250/650 = 38.46%. */
 @keyframes downsize-rise-in {
-  from {
+  0%,
+  38.46% {
     opacity: 0;
     transform: translateY(8px);
   }
-  to {
+  100% {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* `both` fill mode is load-bearing: it holds opacity 0 through the delay,
-   so a staggered element does not flash in and then fade. */
 .enter {
-  animation: downsize-fade-in 300ms ease-out both;
+  animation: downsize-fade-in 300ms ease-out;
 }
 
 .enter-2 {
-  animation-delay: 80ms;
+  animation: downsize-fade-in-2 380ms ease-out;
 }
 
 .enter-3 {
-  animation-delay: 160ms;
+  animation: downsize-fade-in-3 460ms ease-out;
 }
 
-/* Only the name moves. The rest of the footer is already in place. */
+/* Only the name moves. The rest of the footer is already in place. The
+   250ms offset lives in the keyframe, not in animation-delay — see the
+   note above the keyframes. */
 .footer-name {
   display: inline-block;
-  animation: downsize-rise-in 400ms ease-out 250ms both;
+  animation: downsize-rise-in 650ms ease-out;
 }
 
 /* ---------------------------------------------------------------------
@@ -350,29 +387,38 @@
 
    One rule does all four patterns: JS supplies the from-transform, the
    duration and the stagger delay as inline custom properties. --------- */
-/* Arming and the transition are deliberately TWO classes.
+/* An animation, not a transition.
 
-   With both in one rule, adding it puts a new opacity (0) and a new
-   transition on the element in the same style recalculation — so the
-   browser transitions the element from its current opacity of 1 down to
-   0, and it fades OUT over 400ms before the observer ever fades it back
-   in. reveal.ts adds .reveal-armed, forces the style to flush, and only
-   then adds .reveal-ready, so the hidden state is committed with no
-   transition attached and nothing animates until reveal-in arrives. */
+   A transition here has a trap: adding a class that sets opacity 0 AND a
+   transition in one style recalculation makes the browser animate the
+   element from its current opacity of 1 down to 0 — it fades OUT over
+   400ms before the observer ever fades it back in. Avoiding that means
+   arming, forcing a style flush, then attaching the transition, and that
+   flush is a synchronous layout over every armed element on the page.
+   Lighthouse measured it at 79ms on a throttled phone.
+
+   Keyframes carry their own start value, so `.reveal-armed` needs no
+   transition at all and snaps to hidden with no layout read anywhere.
+   var() resolves per element inside @keyframes, which is what lets one
+   animation serve all four patterns. */
 .reveal-armed {
   opacity: 0;
   transform: var(--reveal-from, none);
 }
 
-.reveal-armed.reveal-ready {
-  transition:
-    opacity var(--reveal-duration, 400ms) ease-out var(--reveal-delay, 0ms),
-    transform var(--reveal-duration, 400ms) ease-out var(--reveal-delay, 0ms);
+.reveal-armed.reveal-in {
+  animation: downsize-reveal var(--reveal-duration, 400ms) ease-out var(--reveal-delay, 0ms) both;
 }
 
-.reveal-armed.reveal-in {
-  opacity: 1;
-  transform: none;
+@keyframes downsize-reveal {
+  from {
+    opacity: 0;
+    transform: var(--reveal-from, none);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -447,9 +493,10 @@ body.nav-open {
   *::after {
     animation-duration: 0.01ms !important;
     /* Zeroing the DELAY matters as much as the duration: a delayed
-       animation with duration 0 still waits, then pops. The footer name
-       (250ms) and the staggered page-load (80/160ms) both depend on this
-       to appear with no movement at all rather than a late snap. */
+       animation with duration 0 still waits, then pops. The page-load
+       sequence no longer uses animation-delay (the offsets moved into
+       the keyframes), but the reveal animations still do, and a stray
+       delay elsewhere would reintroduce exactly that late snap. */
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
