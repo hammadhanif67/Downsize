@@ -10,7 +10,7 @@ interface SizeComparisonProps {
 // a fixed 160px square regardless of either image's own aspect ratio
 // (object-contain letterboxes inside it) — that's what keeps the layout
 // stable while a resize is in flight: `result` only ever updates on a
-// successful encode (see useResize), so the "After" box keeps showing the
+// successful encode (see useImagePipeline), so the "After" box keeps showing the
 // previous result at its same fixed size right up until a new one replaces
 // it, never a smaller/blank box in between.
 //

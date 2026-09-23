@@ -77,7 +77,7 @@ export function resolveTargetSize(
   return { width: clampDimension(settings.width), height: clampDimension(settings.height) };
 }
 
-// Shared with useImageFile and useResize — both need to tell a decoded
+// Shared with useImageFile and useImagePipeline — both need to tell a decoded
 // result apart from the AppError union without an `any`.
 export function isAppError(value: unknown): value is AppError {
   return typeof value === 'object' && value !== null && 'kind' in value;

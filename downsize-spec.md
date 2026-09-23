@@ -137,7 +137,7 @@ downsize/
 │   │       └── Spinner.tsx
 │   ├── hooks/
 │   │   ├── useImageFile.ts     # load, validate, hold source image
-│   │   ├── useResize.ts        # resize AND compress settings, one result
+│   │   ├── useImagePipeline.ts # resize + compress settings, one result
 │   │   └── useTheme.ts         # theme choice, storage, theme-color meta
 │   ├── site/                   # operates on index.html's static article,
 │   │   ├── reveal.ts           #   which React does not own — not React
@@ -353,6 +353,30 @@ Do not fake it by downscaling behind the user's back.
 canvas. It runs on an explicit button press only, and §14 checks that by
 counting `toBlob` calls, not by watching the UI.
 
+### 6.10 Pass-through
+
+Added 2026-09-23. When **all** of these hold, the result is the source `File`
+itself and nothing is encoded:
+
+- the resolved output dimensions equal the source dimensions, and
+- `compress.quality` is still `DEFAULT_QUALITY`, and
+- no target search has run (`compressOutcome === null`)
+
+This is not an optimisation. **Re-encoding a JPEG is lossy at any quality** —
+a decode/encode round trip at 95 still moves pixels — so doing it when
+nothing was asked for is damage with no upside. At the default it also
+inflated already-compressed files, so opening the Compress tab on a 320 KB
+photo announced "File is 22% bigger": damage, reported as work.
+
+The result's `previewUrl` is a **second** `createObjectURL` handle to the
+same file, never `source.previewUrl`. Results are revoked when replaced, and
+revoking the source's own URL would blank the Before thumbnail and the file
+card.
+
+The pass-through path still bumps the shared request id, because an encode
+from an earlier edit may be in flight and would otherwise land afterwards
+and replace the source file with its own output.
+
 ### 6.7 Threading
 
 Run on the main thread in v1. The stepped resize of a 12 MP image takes tens of milliseconds and a Web Worker adds transfer complexity for little gain. Keep `lib/image/*` free of DOM-event and React imports so moving to an `OffscreenCanvas` worker later is a contained change.
@@ -395,7 +419,9 @@ Two hooks, no global store.
 
 **`useImageFile()`** owns: `source: SourceImage | null`, `error: AppError | null`, `isLoading`. Exposes `load(file)` and `clear()`. Handles all revoking/closing.
 
-**`useResize(source)`** owns: `settings: ResizeSettings`, `result: ResizeResult | null`, `isProcessing`. Exposes `setWidth`, `setHeight`, `setPercentage`, `applyPreset`, `toggleLock`, `reset`.
+**`useImagePipeline(source)`** (named `useResize` before Phase B) owns: `settings: ResizeSettings`, `compress: CompressSettings`, `result: ResizeResult | null`, `compressOutcome`, `isProcessing`, `isSearching`. Exposes `setWidth`, `setHeight`, `setPercentage`, `applyPreset`, `toggleLock`, `reset`, `setQuality`, `setCompressMode`, `setTargetValue`, `setTargetUnit`, `resetCompress`, `runTargetSearch`.
+
+There is ONE request-id counter, shared by the debounced path and the explicit target-size search. Two counters cannot order each other: a debounced resize that started before a search and finished after it would still match its own id and overwrite the search's result.
 
 Aspect-lock behaviour: when `lockAspect` is true and width changes, `height = round(width / sourceAspect)` and vice versa. Compute from the **source** aspect ratio, never from the current field values — otherwise rounding drift accumulates as the user types.
 
@@ -715,6 +741,17 @@ Ship only when all of these pass:
 - [ ] Loading a second image releases the first (check memory in DevTools)
 
 **Compression**
+- [ ] **Loading an image and changing nothing produces a byte-identical download
+      to the source file.** Verify with a hash, not a size — two different
+      encodes of the same picture can land on the same byte count. Added
+      2026-09-23: the default quality re-encoded an already-compressed JPEG
+      and announced "File is 22% bigger", which is damage reported as work.
+      When the dimensions are unchanged, the quality is still at the default
+      and no target search has run, the result IS the source file (§6.10).
+- [ ] Touching width, height, a preset or the quality slider resumes normal
+      encoding; Reset on either panel returns to pass-through
+- [ ] A target search always produces its own encode, even when it lands on
+      the default quality
 - [ ] A 3 MB JPEG targeting 500 KB lands at or under 500 KB in ≤8 attempts
 - [ ] Re-encoding the same canvas at the reported quality reproduces the byte
       count exactly, and the next point up overshoots (so it really was the
@@ -825,7 +862,7 @@ Work in this sequence and keep the app runnable at the end of each step.
 2. Write `types/`, `constants.ts`, `validation.ts`, `format.ts`.
 3. Write `lib/image/load.ts`, `resize.ts`, `encode.ts`, `download.ts`. Verify from a throwaway test page before any UI exists.
 4. Build `Dropzone` + `useImageFile`: upload, validate, show metadata. No resizing yet.
-5. Build `useResize` + `ResizeControls` + `SizeComparison` + `DownloadBar`. The core loop now works.
+5. Build `useImagePipeline` + `ResizeControls` + `SizeComparison` + `DownloadBar`. The core loop now works.
 6. Add `PresetGrid`.
 7. Add `ImageCanvas` with the ruler-tick frame, `Header`. (Amended 2026-09-23:
    dropped `Footer` — the footer was listed in both §4 and §11.3.6, and only

@@ -54,11 +54,11 @@ export function targetBytesOf(compress: CompressSettings): number {
 // skips if nothing that affects the bytes has changed — so toggling Lock
 // ratio, or a target search writing its found quality back into settings,
 // does not trigger a redundant full encode.
-function signatureOf(width: number, height: number, quality: number | undefined): string {
-  return `${width}x${height}@${quality ?? 'default'}`;
+function signatureOf(width: number, height: number, quality: number | undefined, passThrough: boolean): string {
+  return passThrough ? 'source' : `${width}x${height}@${quality ?? 'default'}`;
 }
 
-export interface UseResizeResult {
+export interface ImagePipeline {
   settings: ResizeSettings;
   compress: CompressSettings;
   result: ResizeResult | null;
@@ -95,10 +95,18 @@ export interface UseResizeResult {
   runTargetSearch: () => void;
 }
 
-// Settings state + debounced processing (spec §8). Holds the same
-// load-before-release discipline as useImageFile: a new result only ever
-// replaces the previous one once it has successfully finished encoding.
-export function useResize(source: SourceImage | null): UseResizeResult {
+// The whole output pipeline: resize settings, compress settings, and the
+// one result both of them produce (spec §8).
+//
+// Renamed from useResize in Phase B. It owns encoding and the target-size
+// search as well as dimensions now, and "useResize" described about half
+// of that. Two call sites at the time of the rename; after another phase
+// it would have been five.
+//
+// Holds the same load-before-release discipline as useImageFile: a new
+// result only ever replaces the previous one once it has successfully
+// finished encoding.
+export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   const [settings, setSettings] = useState<ResizeSettings>(EMPTY_SETTINGS);
   const [compress, setCompress] = useState<CompressSettings>(DEFAULT_COMPRESS);
   const [result, setResult] = useState<ResizeResult | null>(null);
@@ -161,6 +169,27 @@ export function useResize(source: SourceImage | null): UseResizeResult {
     });
   }, [source]);
 
+  // Nothing has been asked for that the source file does not already
+  // satisfy: same dimensions, quality still at the default, and no target
+  // search has run. In that state the honest output IS the input.
+  //
+  // This is not an optimisation. Re-encoding a JPEG is lossy at ANY
+  // quality — a decode/encode round trip at 95 still moves pixels, and at
+  // the default it also inflated an already-compressed file, so opening
+  // the Compress tab on a 320 KB photo announced "File is 22% bigger".
+  // That is damage we had no reason to do, reported as if it were work.
+  //
+  // The moment width, height, a preset or the slider moves, or a search
+  // runs, this goes false and normal encoding resumes.
+  const isPassThrough =
+    source !== null &&
+    compressOutcome === null &&
+    compress.quality === DEFAULT_QUALITY &&
+    (() => {
+      const { width, height } = resolveTargetSize(settings, source.width, source.height);
+      return width === source.width && height === source.height;
+    })();
+
   // Debounced regeneration (spec §6.8): wait 250ms of quiet before actually
   // resizing. clearTimeout in the cleanup means only the LAST settings
   // change in a fast burst (e.g. typing "1280" digit by digit) ever starts
@@ -179,7 +208,7 @@ export function useResize(source: SourceImage | null): UseResizeResult {
 
     const timeoutId = window.setTimeout(async () => {
       const { width, height } = resolveTargetSize(settings, source.width, source.height);
-      const signature = signatureOf(width, height, effectiveQuality);
+      const signature = signatureOf(width, height, effectiveQuality, isPassThrough);
 
       // Nothing that affects the bytes has changed. Toggling Lock ratio,
       // or a target search writing its found quality back into settings,
@@ -189,7 +218,30 @@ export function useResize(source: SourceImage | null): UseResizeResult {
       // the deps are settings objects and this is about their RESULT.
       if (signature === lastSignatureRef.current) return;
 
+      // Bumped even on the synchronous pass-through path: an encode from
+      // an earlier edit may still be in flight, and without this it would
+      // land afterwards and replace the source file with its own output.
       const requestId = ++requestIdRef.current;
+
+      if (isPassThrough) {
+        lastSignatureRef.current = signature;
+        setError(null);
+        setResult((prev) => {
+          if (prev) URL.revokeObjectURL(prev.previewUrl);
+          return {
+            blob: source.file,
+            width,
+            height,
+            bytes: source.file.size,
+            // A SECOND handle to the same file, not source.previewUrl.
+            // Results are revoked when replaced, and revoking the source's
+            // own URL would blank the Before thumbnail and the file card.
+            previewUrl: URL.createObjectURL(source.file),
+          };
+        });
+        return;
+      }
+
       setIsProcessing(true);
 
       const { canvas } = resize(source.bitmap, width, height);
@@ -230,7 +282,7 @@ export function useResize(source: SourceImage | null): UseResizeResult {
     // none of them changes the bytes, and listing them would make typing
     // in the target field start an encode — the exact thing the explicit
     // button exists to avoid.
-  }, [settings, effectiveQuality, source]);
+  }, [settings, effectiveQuality, isPassThrough, source]);
 
   // Raw setters — no clamping here on purpose (spec §9.3: clamp on blur,
   // not on keystroke). Aspect-lock derives the paired axis from the
@@ -378,7 +430,7 @@ export function useResize(source: SourceImage | null): UseResizeResult {
       // Write the answer back into the one quality the app has. The
       // signature is stored first so the effect this setCompress is about
       // to wake sees its work already done and returns without re-encoding.
-      lastSignatureRef.current = signatureOf(width, height, found.quality);
+      lastSignatureRef.current = signatureOf(width, height, found.quality, false);
       setCompress((prev) => ({ ...prev, quality: found.quality }));
       setCompressOutcome({
         quality: found.quality,

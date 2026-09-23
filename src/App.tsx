@@ -3,7 +3,7 @@ import Dropzone from './components/upload/Dropzone';
 import FileError from './components/upload/FileError';
 import Workspace from './components/workspace/Workspace';
 import { useImageFile } from './hooks/useImageFile';
-import { useResize } from './hooks/useResize';
+import { useImagePipeline } from './hooks/useImagePipeline';
 
 // The tool. One job: resize an image. Two-column workspace once a file is
 // loaded, dropzone before that.
@@ -35,7 +35,7 @@ function App() {
     setTargetUnit,
     resetCompress,
     runTargetSearch,
-  } = useResize(source);
+  } = useImagePipeline(source);
 
   // `relative` is what the navbar's scroll sentinel is positioned against
   // — the sentinel has to sit at document top and stay there while the

@@ -27,9 +27,20 @@ const MAX_POINTS = Math.round(MAX_QUALITY * 100);
 function outcomeLine(outcome: CompressOutcome): string {
   const quality = Math.round(outcome.quality * 100);
   if (!outcome.reachable) {
+    const target = formatBytes(outcome.targetBytes);
+    const smallest = formatBytes(outcome.bytes);
+    // When the overshoot is small enough that both numbers round to the
+    // same label, the obvious sentence contradicts itself: "Couldn't get
+    // under 110 KB. Smallest is 110 KB." Seen in testing with a 112,640
+    // byte result against a 110 KB target. Say what is actually true
+    // instead of printing two identical numbers and leaving the reader to
+    // decide which one is wrong.
+    if (target === smallest) {
+      return `Couldn't get under ${target}. The smallest this image encodes to is just over it, at quality ${quality}.`;
+    }
     // Says what happened, in the same words a person would use. Not
     // "target not met" — that reads as the tool deflecting.
-    return `Couldn't get under ${formatBytes(outcome.targetBytes)}. Smallest is ${formatBytes(outcome.bytes)} at quality ${quality}.`;
+    return `Couldn't get under ${target}. Smallest is ${smallest} at quality ${quality}.`;
   }
   return `Quality ${quality} · ${outcome.attempts} ${outcome.attempts === 1 ? 'attempt' : 'attempts'}`;
 }
