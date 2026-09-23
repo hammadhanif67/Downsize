@@ -21,18 +21,24 @@ function SizeComparison({ source, result }: SizeComparisonProps) {
   return (
     <div aria-live="polite">
       <div className="flex gap-6">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <p className="text-caption text-ink-muted">Before</p>
-          <div className="mt-1 flex h-40 w-40 items-center justify-center border border-rule bg-surface">
+          {/* Capped at 160px but allowed to shrink: two fixed 160px boxes
+              plus the gap came to 344px, which overflowed the 313px of
+              content width available at a 360px viewport. aspect-square
+              keeps it a fixed-shape box driven by the column rather than
+              by the image, so it still never reflows when the result
+              updates. */}
+          <div className="mt-1 flex aspect-square w-full max-w-40 items-center justify-center border border-rule bg-surface">
             <img src={source.previewUrl} alt="" className="max-h-full max-w-full object-contain" />
           </div>
           <p className="mt-1 font-mono text-caption text-ink-muted">{formatDimensions(source.width, source.height)}</p>
           <p className="font-mono text-caption text-ink-muted">{formatBytes(source.bytes)}</p>
         </div>
 
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <p className="text-caption text-ink-muted">After</p>
-          <div className="mt-1 flex h-40 w-40 items-center justify-center border border-rule bg-surface">
+          <div className="mt-1 flex aspect-square w-full max-w-40 items-center justify-center border border-rule bg-surface">
             {result && <img src={result.previewUrl} alt="" className="max-h-full max-w-full object-contain" />}
           </div>
           <p className="mt-1 font-mono text-caption text-ink-muted">

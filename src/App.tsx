@@ -30,9 +30,15 @@ function App() {
   return (
     <div className="bg-paper">
       <Header />
-      {/* Second step of the page-load sequence; the header is first and the
-          static article is third (see index.css). Runs once. */}
-      <div className="enter enter-2 mx-auto max-w-[1240px] px-4 py-10 sm:px-6">
+      {/* A labelled <section> is a region landmark, so the tool's content
+          is inside one without creating a second <main> — index.html's
+          static article owns the page's only <main> (spec §11.1).
+          Second step of the page-load sequence; the header is first and
+          the article third (see index.css). Runs once. */}
+      <section
+        aria-label="Image resizer"
+        className="enter enter-2 mx-auto max-w-[1240px] px-4 py-10 sm:px-6"
+      >
         {!source && (
           <>
             <Dropzone onFileSelected={load} isLoading={isLoading} />
@@ -60,7 +66,7 @@ function App() {
             applyPreset={applyPreset}
           />
         )}
-      </div>
+      </section>
     </div>
   );
 }
