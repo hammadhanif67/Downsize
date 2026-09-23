@@ -1,26 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" shape-rendering="crispEdges">
   <!--
-    A redrawn mark, not the logo scaled down. Everything here is chosen so
-    it lands on whole pixels at 16px (1 unit = 2/3 px, so all values are
-    multiples of 1.5) — otherwise the edges antialias into mush:
+    Its own geometry, NOT the 24-unit Logo.tsx mark scaled down.
 
-      stroke 3 units  -> 2px band
-      inner  9 units  -> crisp 6x6 square
-      gap    1.5      -> 1px clear on the bottom and left
+    At 16px a 24-unit box scales by 0.667, so the 2-unit stroke lands on
+    1.33 device pixels and every edge falls on a third of a pixel. The
+    browser antialiases it into grey mush. Here the grid IS 16 units, the
+    stroke is 2 units, and every stroke centre is on an integer — a
+    2-wide stroke centred on an integer covers two whole pixels, so every
+    edge is exact. shape-rendering="crispEdges" holds that even if a
+    browser scales the SVG to a non-integer size.
 
-    The inner square is smaller than the logo's (9/24 vs 11/24) and pushed
-    harder into the corner: at this size a 45% square with even gaps just
-    reads as "centred", which loses the whole idea of the mark.
+    Arms are 5 units long and 3 short (7 and 5 once the square caps add
+    their half-stroke), keeping the same asymmetry as the 24-unit mark at
+    the coarsest ratio that still reads.
 
-    The stroke flips to white under a dark colour scheme — a black outline
-    on transparency is invisible against a dark browser tab strip.
+    The ink colour is swapped for dark tab strips. --ink cannot be used:
+    an SVG loaded as a favicon is an isolated document and inherits
+    nothing from the page, so the values are literal and the media query
+    is inside the file.
   -->
   <style>
-    .frame { stroke: #000000; }
+    .ink { stroke: #000000; }
+    .accent { stroke: #1B4FD8; }
     @media (prefers-color-scheme: dark) {
-      .frame { stroke: #ffffff; }
+      .ink { stroke: #F2F4F7; }
+      /* The light accent is 1.46:1 on a near-black tab strip — the
+         bracket would simply not be there. Same lightened accent the
+         dark theme uses. */
+      .accent { stroke: #4C7DFF; }
     }
   </style>
-  <rect class="frame" x="1.5" y="1.5" width="21" height="21" fill="none" stroke-width="3" />
-  <rect x="4.5" y="10.5" width="9" height="9" fill="#1b4fd8" />
+  <g fill="none" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+    <!-- Top-left, long, accent -->
+    <path class="accent" d="M1 6V1h5" />
+    <!-- Top-right, short -->
+    <path class="ink" d="M15 4V1h-3" />
+    <!-- Bottom-right, long -->
+    <path class="ink" d="M15 10v5h-5" />
+    <!-- Bottom-left, short -->
+    <path class="ink" d="M1 12v3h3" />
+  </g>
 </svg>

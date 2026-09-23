@@ -1,4 +1,4 @@
-import Header from './components/layout/Header';
+import Navbar from './components/layout/Navbar';
 import Dropzone from './components/upload/Dropzone';
 import FileError from './components/upload/FileError';
 import Workspace from './components/workspace/Workspace';
@@ -27,9 +27,12 @@ function App() {
     applyPreset,
   } = useResize(source);
 
+  // `relative` is what the navbar's scroll sentinel is positioned against
+  // — the sentinel has to sit at document top and stay there while the
+  // sticky header travels.
   return (
-    <div className="bg-paper">
-      <Header />
+    <div className="relative bg-paper">
+      <Navbar />
       {/* A labelled <section> is a region landmark, so the tool's content
           is inside one without creating a second <main> — index.html's
           static article owns the page's only <main> (spec §11.1).

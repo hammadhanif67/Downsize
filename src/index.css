@@ -4,8 +4,26 @@
 
 /* Design tokens (spec §9.1), kept as plain custom properties — not only
    Tailwind theme keys — because one-off drawing code (the ruler-tick frame)
-   reads these directly via var(--rule) etc. rather than through a class. */
+   reads these directly via var(--rule) etc. rather than through a class.
+   ---------------------------------------------------------------------
+   THEME. Tokens are the only thing that changes between light and dark.
+   No component reads the theme, no component has a `dark:` variant, and
+   nothing below this block knows which theme it is in — which is why the
+   @theme bridge points --color-* at these vars by REFERENCE rather than
+   copying their values: redefining --paper on :root re-resolves
+   --color-paper, so every generated utility follows.
+
+   Three selectors, in this order:
+     :root                                  explicit light, and the default
+     :root[data-theme="dark"]               explicit dark
+     @media dark + :not([data-theme=light]) OS dark, unless overridden
+
+   The media block comes last so it can win over the bare :root defaults on
+   specificity parity, and the :not() is what lets an explicit "light"
+   choice beat a dark OS. */
 :root {
+  color-scheme: light;
+
   --paper: #ffffff;
   --surface: #f5f7f9;
   --ink: #000000;
@@ -14,6 +32,44 @@
   --accent: #1b4fd8;
   --accent-ink: #0a3099; /* hover/active only */
   --danger: #b3261e;
+
+  /* Label colour for text sitting ON --accent (the download button). It
+     is a token, not a hardcoded white, because white fails AA against the
+     lightened dark-mode accent: #fff on #4C7DFF is 3.69:1. Near-black on
+     that same accent is 5.27:1. See the dark block. */
+  --on-accent: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #0b0d10;
+  --surface: #14181d;
+  --ink: #f2f4f7;
+  --ink-muted: #9aa3af;
+  --rule: #262c34;
+  /* Lightened from #1B4FD8, which is 1.46:1 on #0B0D10 — invisible. */
+  --accent: #4c7dff;
+  --accent-ink: #6b95ff;
+  /* #b3261e is 2.98:1 on the dark paper, below AA. This is 6.97:1. */
+  --danger: #ff6b61;
+  --on-accent: #0b0d10;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper: #0b0d10;
+    --surface: #14181d;
+    --ink: #f2f4f7;
+    --ink-muted: #9aa3af;
+    --rule: #262c34;
+    --accent: #4c7dff;
+    --accent-ink: #6b95ff;
+    --danger: #ff6b61;
+    --on-accent: #0b0d10;
+  }
 }
 
 /* Bridge the tokens into Tailwind's theme so utilities are generated from
@@ -27,6 +83,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-danger: var(--danger);
+  --color-on-accent: var(--on-accent);
 
   --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
@@ -44,6 +101,9 @@
 @layer base {
   html {
     font-family: var(--font-sans);
+    /* The navbar is 64px and sticky, so an anchor jump would otherwise
+       land the heading underneath it. 80px = 64 + 16 of breathing room. */
+    scroll-padding-top: 80px;
   }
 
   body {
@@ -93,6 +153,16 @@
   margin: 0 auto;
   padding: 3.5rem 1rem 4rem;
   color: var(--ink);
+  /* The reveal animations translate blocks ±24px horizontally. On a phone
+     a block already spans the full content width, so a +24px offset puts
+     its right edge past the viewport and the document gains a horizontal
+     scrollbar for the 450ms the animation runs — visible as a jitter, and
+     invisible to any test that only measures at rest.
+
+     `clip`, not `hidden`: hidden makes this a scroll container, which
+     would break the sticky navbar's containing block and swallow
+     scroll-padding-top. clip crops without any of that. */
+  overflow-x: clip;
 }
 
 @media (min-width: 640px) {
@@ -213,6 +283,11 @@
    3. number fields + slider: 120ms colour on focus
    4. preset cells: 120ms border colour on hover/selection
    5. the footer name: 400ms rise, 250ms after the footer
+   6. navbar: 120ms colour on link hover, 150ms on the scrolled border
+   7. scroll reveals on the static article — headings rise 20px/400ms,
+      paragraph blocks slide ±24px/450ms alternating, table rows rise
+      12px/400ms staggered 40ms. Once each, then unobserved.
+   8. the one typing line under the H1
    --------------------------------------------------------------------- */
 
 @keyframes downsize-fade-in {
@@ -255,6 +330,117 @@
   animation: downsize-rise-in 400ms ease-out 250ms both;
 }
 
+/* ---------------------------------------------------------------------
+   Scroll reveals.
+
+   The default state of every [data-reveal] element is VISIBLE — there is
+   no rule here that hides one. `.reveal-armed` is added by JS, and only
+   to elements that are below the fold at the moment it runs. So:
+
+     - no JS, JS error, JS blocked  → nothing is ever armed, everything
+                                      renders normally
+     - crawler with no JS           → same, full text in the DOM
+     - element already on screen    → never armed, never animates, which
+                                      is what keeps the H1 and the tool
+                                      (the LCP candidates) off this path
+
+   That ordering is the whole point. The usual version of this ships
+   `opacity: 0` in the stylesheet and restores it with JS, which means a
+   JS failure leaves the page blank.
+
+   One rule does all four patterns: JS supplies the from-transform, the
+   duration and the stagger delay as inline custom properties. --------- */
+/* Arming and the transition are deliberately TWO classes.
+
+   With both in one rule, adding it puts a new opacity (0) and a new
+   transition on the element in the same style recalculation — so the
+   browser transitions the element from its current opacity of 1 down to
+   0, and it fades OUT over 400ms before the observer ever fades it back
+   in. reveal.ts adds .reveal-armed, forces the style to flush, and only
+   then adds .reveal-ready, so the hidden state is committed with no
+   transition attached and nothing animates until reveal-in arrives. */
+.reveal-armed {
+  opacity: 0;
+  transform: var(--reveal-from, none);
+}
+
+.reveal-armed.reveal-ready {
+  transition:
+    opacity var(--reveal-duration, 400ms) ease-out var(--reveal-delay, 0ms),
+    transform var(--reveal-duration, 400ms) ease-out var(--reveal-delay, 0ms);
+}
+
+.reveal-armed.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------------------------------------------------------------------
+   The typing line. One line, under the H1, and nowhere else.
+
+   The real sentence is static text in the HTML inside .visually-hidden,
+   so a crawler and a screen reader both get "Resize for Instagram,
+   YouTube, LinkedIn, a blog or email." as plain prose. The animated span
+   next to it is aria-hidden and decorative.
+
+   min-width holds the line at the width of the longest word so the
+   sentence does not reflow as words are typed and deleted. --------- */
+.type-line {
+  font-size: var(--text-body);
+  color: var(--ink-muted);
+  margin: -0.5rem 0 1.75rem;
+}
+
+.type-word {
+  display: inline-block;
+  /* Wide enough for "Instagram", the longest word in the cycle, measured
+     at this size and weight — the line must not reflow as words change. */
+  min-width: 5em;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.type-caret {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: -0.1em;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  animation: downsize-caret 1s step-end infinite;
+}
+
+@keyframes downsize-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Not Tailwind's sr-only: this class is used by index.html's static
+   markup, which no component renders, so it should not depend on the
+   utility scanner having picked that file up. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Scroll lock while the mobile nav panel is open. Set on <body> by the
+   Navbar so the page behind the panel does not scroll under it. */
+body.nav-open {
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -269,5 +455,20 @@
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Belt and braces. The reveal script already refuses to arm anything
+     and the typing script already parks on the first word when this
+     query matches, so neither of these should ever have something to
+     undo — but if JS runs before the query is read, or a user flips the
+     OS setting mid-session, CSS still resolves both to their end state
+     rather than leaving an element at opacity 0. */
+  .reveal-armed {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .type-caret {
+    display: none;
   }
 }

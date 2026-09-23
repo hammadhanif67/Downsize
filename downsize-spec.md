@@ -86,9 +86,10 @@ downsize/
 ├── public/
 │   ├── robots.txt
 │   ├── sitemap.xml
-│   ├── og-image.png            # 1200×630
+│   ├── og-image.png            # 1200×630, light palette in both themes
 │   ├── apple-touch-icon.png    # 180×180
-│   ├── favicon.svg
+│   ├── favicon.ico             # 16 + 32, PNG payloads
+│   ├── favicon.svg             # own 16-unit geometry, see the file
 │   └── _headers                # Cloudflare headers (see §12)
 ├── src/
 │   ├── main.tsx
@@ -96,7 +97,8 @@ downsize/
 │   ├── index.css               # Tailwind + design tokens
 │   ├── components/
 │   │   ├── layout/
-│   │   │   ├── Header.tsx
+│   │   │   ├── Navbar.tsx           # sticky bar, section spy, mobile panel
+│   │   │   ├── ThemeToggle.tsx      # light → dark → system
 │   │   │   └── Logo.tsx             # inline SVG mark, size prop
 │   │   ├── upload/
 │   │   │   ├── Dropzone.tsx
@@ -109,6 +111,7 @@ downsize/
 │   │   │   ├── PresetGrid.tsx
 │   │   │   ├── SizeComparison.tsx   # before → after, side-by-side thumbnails
 │   │   │   └── DownloadBar.tsx
+│   │   ├── icons/                   # platform glyphs for PresetGrid
 │   │   └── ui/
 │   │       ├── Button.tsx
 │   │       ├── NumberField.tsx
@@ -116,7 +119,11 @@ downsize/
 │   │       └── Spinner.tsx
 │   ├── hooks/
 │   │   ├── useImageFile.ts     # load, validate, hold source image
-│   │   └── useResize.ts        # settings state + run processing
+│   │   ├── useResize.ts        # settings state + run processing
+│   │   └── useTheme.ts         # theme choice, storage, theme-color meta
+│   ├── site/                   # operates on index.html's static article,
+│   │   ├── reveal.ts           #   which React does not own — not React
+│   │   └── typing.ts           #   code, so not components/ or hooks/
 │   ├── lib/
 │   │   ├── image/
 │   │   │   ├── load.ts
@@ -338,17 +345,42 @@ The subject is measurement — dimensions, ratios, exact pixels. The visual lang
 
 **Tokens** (define as CSS custom properties in `index.css`, consume via Tailwind):
 
+**Amended 2026-09-23.** The values below replace the original set, which was a
+grey-on-grey scheme; the palette is now white/black with one blue, and there are
+two of them.
+
 ```
---paper:     #F4F5F7   /* app background */
---surface:   #FFFFFF   /* panels, canvas backdrop */
---ink:       #15191F   /* primary text */
---ink-muted: #5E6672   /* secondary text, units, hints */
---rule:      #D9DEE5   /* borders, dividers, ruler ticks */
---accent:    #1B4FD8   /* active state, primary action — used sparingly */
---danger:    #B3261E   /* error text and borders only */
+                 LIGHT (:root)   DARK ([data-theme="dark"])
+--paper:         #FFFFFF         #0B0D10    /* page background */
+--surface:       #F5F7F9         #14181D    /* panels, canvas backdrop */
+--ink:           #000000         #F2F4F7    /* primary text */
+--ink-muted:     #4A5260         #9AA3AF    /* secondary text, units, hints */
+--rule:          #D6DBE1         #262C34    /* borders, dividers, ruler ticks */
+--accent:        #1B4FD8         #4C7DFF    /* active state, primary action */
+--accent-ink:    #0A3099         #6B95FF    /* hover/active only */
+--danger:        #B3261E         #FF6B61    /* error text and borders only */
+--on-accent:     #FFFFFF         #0B0D10    /* label ON --accent */
 ```
 
-Dark mode is out of scope for v1.
+Three things about this that are not arbitrary:
+
+- `--accent` **lightens** in dark mode. #1B4FD8 on #0B0D10 is 1.46:1 — not a dim
+  blue, an invisible one.
+- `--on-accent` exists because white is not a safe label colour on the lightened
+  accent: #FFF on #4C7DFF is 3.69:1, below AA. Near-black on it is 5.27:1. The
+  download button reads this token; it does not hardcode white.
+- `--danger` lightens for the same reason (#B3261E on the dark paper is 2.98:1).
+
+**Dark mode** (was "out of scope for v1", reinstated 2026-09-23). Tokens only — no
+component has a `dark:` variant and no component reads the theme. Three selectors:
+`:root` for light, `:root[data-theme="dark"]`, and
+`@media (prefers-color-scheme: dark) :root:not([data-theme="light"])`. The toggle
+cycles light → dark → system and persists to `localStorage` under `downsize-theme`.
+
+A **blocking inline script** at the top of `<head>`, before any stylesheet and not a
+module, reads that key and sets `data-theme` before first paint. It duplicates the
+key name and the two paper colours from `hooks/useTheme.ts`; that duplication is
+deliberate and unavoidable — it has to run before the bundle exists.
 
 **Type:** one family for the interface — **Instrument Sans** (self-hosted via `@fontsource`, weights 400/500/600). For numeric values only — dimensions, file sizes, percentages — use **IBM Plex Mono** at 400. The mono face is functional, not decorative: tabular figures stop the layout from jittering while a number is being edited. Do not use mono for labels, buttons, or prose.
 
@@ -381,7 +413,26 @@ Two columns on ≥1024px (preview ~62%, controls ~38%). Single column below, con
 
 **The one bold move:** thin ruler ticks along the top and left edge of the preview frame, drawn in `--rule`, with the pixel dimension labelled at each end. It is the only ornament in the app and it earns its place by encoding the actual subject — size. Everything else stays flat: **0 radius everywhere** (amended 2026-09-23 — the original "4px radius on controls" line is revoked; sharp corners throughout, set globally via `* { border-radius: 0 }` rather than trusted to each component), no shadows, no gradients, no card grid.
 
-**Motion:** one transition only — the preview cross-fades over 150ms when a new result replaces the old one, so the change is visible. No entrance animations, no hover lifts. Respect `prefers-reduced-motion: reduce` by disabling even that.
+**Motion.** The original line here — "one transition only, no entrance animations" —
+was written for the tool alone, before there was a page around it. Amended
+2026-09-23. The complete list now lives as a comment block in `index.css`; nothing
+animates that is not on it. In summary: a 300ms page-load fade in three 80ms steps,
+the 150ms preview cross-fade, 120ms colour changes on focus/hover/selection, the
+footer name, scroll reveals on the static article, and one typing line.
+
+Rules that the scroll reveals are bound by, because they are what separates this
+from a template:
+
+- Every element is fully present and readable in the HTML. Animation is opacity and
+  transform only — never `display: none`, never `visibility: hidden`, never text
+  injected by JS.
+- The default state is **visible**. No stylesheet rule hides a reveal target. JS adds
+  the class that makes one animatable, and only to elements below the fold at that
+  moment — so a JS failure, or a crawler, gets the whole page.
+- Nothing above the fold animates. The H1 and the tool are the LCP candidates.
+- `prefers-reduced-motion: reduce` means the scripts do nothing at all.
+
+Typing applies to exactly one line, under the H1, and nowhere else.
 
 ### 9.2 Empty state (dropzone)
 
@@ -610,6 +661,30 @@ Ship only when all of these pass:
 - [ ] Layout holds at 320px width with no horizontal scroll
 - [ ] Rapid slider dragging never freezes the UI
 - [ ] Reduced-motion preference removes the cross-fade
+
+**Theme**
+- [ ] Hard reload with dark stored shows no white frame before paint
+- [ ] The choice survives a reload, and an explicit light beats a dark OS
+- [ ] System mode follows the OS setting with no reload
+- [ ] Every text/background pair passes WCAG AA in BOTH themes — measured from the
+      rendered page, not from the token list, and with transitions disabled first
+      (a frozen mid-transition colour reads as a failure that is not there)
+
+**Motion**
+- [ ] With JS blocked, nothing in the article is below opacity 1
+- [ ] With `prefers-reduced-motion`, no element is transformed and the typing line
+      sits on its first word
+- [ ] `scrollWidth === clientWidth` at 360/390/414/768/1024/1440 with every
+      horizontally-translated block held at full displacement, not just at rest
+- [ ] Table reveals animate the `<td>`s. A `<tr>` silently ignores both `opacity`
+      and `transform`, so arming rows animates nothing and looks correct in a
+      screenshot
+
+**Content**
+- [ ] Every FAQ answer appears in the FAQPage JSON-LD, matching the on-page text
+- [ ] The preset table's DIMENSIONS match `lib/presets.ts` (the names deliberately
+      differ: the tool shortens them, the table spells them out)
+- [ ] Each nav anchor id exists in `index.html`
 
 **SEO / performance**
 - [ ] `curl https://downsizeimage.com` returns the H1, the how-to steps, and the FAQ in the raw HTML

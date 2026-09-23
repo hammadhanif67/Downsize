@@ -2,6 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+
+    <!--
+      FIRST, before any stylesheet, and deliberately not a module.
+
+      A module is deferred, which means it runs after the document is
+      parsed — far too late. This has to set data-theme on <html> before
+      the first paint, or a dark-mode visitor gets a white page for a
+      frame or two and then the real one. That flash is the single most
+      obvious tell of a theme bolted on afterwards.
+
+      It is inline for the same reason: an external file is another
+      round trip before paint.
+
+      'downsize-theme' and the light/dark values are duplicated from
+      src/hooks/useTheme.ts. That duplication is the price of running
+      before the bundle exists; there is no way to import here. The try
+      block matters — localStorage throws outright in some privacy modes,
+      and an exception here would block the parser.
+
+      No stored value, or "system", means no attribute, and the
+      prefers-color-scheme block in index.css takes over.
+    -->
+    <script>
+      (function () {
+        try {
+          var choice = localStorage.getItem('downsize-theme');
+          if (choice === 'light' || choice === 'dark') {
+            document.documentElement.setAttribute('data-theme', choice);
+          }
+        } catch (e) {
+          /* storage unavailable — fall through to the OS preference */
+        }
+      })();
+    </script>
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <title>Resize an Image Online — Free, Private, No Upload | Downsize</title>
@@ -14,7 +49,14 @@
     <!-- %VITE_SITE_URL% is substituted at build time from the one value in
          vite.config.ts's resolveSiteUrl(). Never hardcode a domain here. -->
     <link rel="canonical" href="%VITE_SITE_URL%/" />
-    <meta name="theme-color" content="#FFFFFF" />
+
+    <!-- The media-scoped pair is the correct answer for "system", and the
+         only answer with JS off. An explicit light/dark choice is handled
+         by useTheme.ts, which prepends an unscoped tag — the HTML spec
+         takes the first matching meta in tree order, so inserting at the
+         top of <head> is what lets an override win. -->
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)" />
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="%VITE_SITE_URL%/" />
@@ -47,6 +89,13 @@
       }
     </script>
 
+    <!--
+      Every answer below is the same text as the corresponding <p> in the
+      article, whitespace aside. Google treats FAQ markup that does not
+      appear on the page as a structured-data violation, so this is not a
+      place to write a shorter version. §14 checks the two against each
+      other.
+    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -91,6 +140,30 @@
               "@type": "Answer",
               "text": "No. Downsize is free, has no account, and adds no watermark. There is no paid tier to upgrade to."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Downsize work offline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Once the page has loaded, yes. Nothing is fetched while you resize an image, so the connection can drop and the tool keeps working. Loading the page in the first place still needs a connection, because there is no installed copy of it on your device."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is my PNG bigger after resizing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "PNG stores every pixel exactly, and it compresses by finding repetition. A photograph saved as a PNG has very little repetition to find, so shrinking it removes pixels but can still leave a file larger than the JPG you started from. If the original was a JPG, the honest comparison is against another JPG."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I resize several images at once?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Not yet. Downsize handles one image at a time, and the resize is fast enough that repeating it for a handful of files is quicker than it sounds. Batch mode is a reasonable thing to want and it is not ruled out."
+            }
           }
         ]
       }
@@ -105,9 +178,28 @@
       markup (spec §11.1), which is why it is here rather than in a
       component: a crawler gets the whole article on the first byte, with
       no JS execution required. This is also the page's single <main>.
+
+      Nothing here is hidden, collapsed or injected. The scroll reveals in
+      src/site/reveal.ts only ever add classes to what is already on the
+      page, and only below the fold.
     -->
     <main class="page-content enter enter-3">
       <h1>Resize an image without uploading it</h1>
+
+      <!-- The sentence exists twice on purpose: the first copy is the one
+           a screen reader and a crawler read, whole. The second is
+           decorative, and is seeded with the first word so the line still
+           reads correctly with JS off. See src/site/typing.ts. -->
+      <p class="type-line">
+        <span class="visually-hidden"
+          >Resize for Instagram, YouTube, LinkedIn, a blog or email.</span
+        >
+        <span aria-hidden="true"
+          >Resize for <span class="type-word" id="type-word">Instagram</span
+          ><span class="type-caret"></span
+        ></span>
+      </p>
+
       <p>
         Downsize changes the dimensions of a JPG, PNG or WEBP image using your browser's own image
         tools. The file is read from your device and worked on there — it is never sent to a server,
@@ -118,7 +210,7 @@
       <h2 id="how-it-works">How to resize an image</h2>
       <ol>
         <li>Drop an image onto the page, or choose a file from your device.</li>
-        <li>Enter the width you need. The height follows automatically unless you unlock the ratio.</li>
+        <li>Pick a platform for a ready-made size, or enter the width you need. The height follows automatically unless you unlock the ratio.</li>
         <li>Check the before and after figures — dimensions and file size update as you type.</li>
         <li>Download the resized image.</li>
       </ol>
@@ -140,12 +232,107 @@
         and no record that you were ever here. Open the page, do the one thing, close the tab.
       </p>
 
-      <h2>Common image sizes</h2>
+      <h2 id="formats">JPG, PNG or WEBP, which to use</h2>
       <p>
-        These are the presets built into the tool. Anything not listed can be typed in directly.
+        The format decides how much of the file size you can trade away and what you lose in return.
+        Downsize always saves back to the format you opened, so this is a choice you make before you
+        resize an image rather than after.
+      </p>
+
+      <h3>JPG</h3>
+      <p>
+        JPG is built for photographs. It throws away detail your eye is bad at noticing, which is
+        why a twelve-megapixel photo can sit in a few hundred kilobytes and still look right. It is
+        the wrong choice for screenshots, logos and anything with flat colour, because the same
+        trick that flatters a sky leaves visible smears around hard edges. The mistake people make
+        is saving text as JPG — the compression works in small square blocks, and a sharp letter
+        edge inside one produces a grey halo that no amount of quality setting fully removes.
+      </p>
+
+      <h3>PNG</h3>
+      <p>
+        PNG keeps every pixel exactly as it was and supports transparency, which makes it the right
+        answer for screenshots, diagrams, line art and anything that has to sit on a background. It
+        is the wrong choice when the image is a photograph: with no repeating areas to compress, the
+        file can be five or ten times the size of the equivalent JPG for no visible gain. The
+        mistake people make is treating PNG as the high-quality option and using it for photos,
+        then wondering why an image they resized is still enormous.
+      </p>
+
+      <h3>WEBP</h3>
+      <p>
+        WEBP does both jobs — lossy like JPG, lossless and transparent like PNG — and is usually
+        smaller than either at the same quality, which is why it is a sensible default for anything
+        going on the web. It is the wrong choice when the file has to leave the web: older versions
+        of Office, Photoshop and plenty of print workflows still refuse to open it. The mistake
+        people make is converting an archive to WEBP for the space saving and finding out later
+        that the software they need cannot read a single one of them.
+      </p>
+
+      <h2>What happens when an image is resized</h2>
+      <p>
+        Making an image smaller is an averaging job. Several pixels from the original are combined
+        into one, so the detail that was there is condensed rather than discarded, and the result
+        stays sharp. Going the other way cannot work the same, because there is nothing to average —
+        enlarging has to invent pixels between the ones that were recorded, and invented pixels are
+        a guess. That is the real reason a photo you resize upwards looks soft while the same photo
+        resized down looks fine.
+      </p>
+      <p>
+        How the shrinking is done matters as much as by how much. Ask a browser to draw a
+        4000-pixel-wide photo into a 400-pixel box in one step and it samples a fraction of the
+        source pixels and ignores the rest, which turns fine detail into speckle and makes straight
+        lines crawl. Halving repeatedly instead — 4000 to 2000 to 1000 to 500, then the last short
+        step — means every original pixel contributes to the result. Downsize does it in steps for
+        exactly this reason, and it is the clearest difference between it and a tool that hands the
+        whole reduction to one draw call.
+      </p>
+
+      <h2>Getting the size right for each platform</h2>
+      <p>
+        Every platform crops, and each one crops differently. Matching the dimensions before you
+        upload is the only way to decide what gets cut, rather than finding out afterwards.
+      </p>
+      <p>
+        <strong>Instagram</strong> accepts 1080 × 1080 square, 1080 × 1350 portrait and 1080 × 1920
+        for stories. Portrait is the tallest the feed will show, and anything taller is cropped to
+        it. On a story, roughly the top and bottom sixth sits under the interface, so keep anything
+        that has to be read away from both edges.
+      </p>
+      <p>
+        <strong>YouTube</strong> thumbnails are 1280 × 720, but they are almost never seen that
+        large — in a sidebar or a phone list the same image is a couple of hundred pixels wide. Text
+        that reads comfortably at full size often disappears there, which is the thing worth
+        checking before you settle on one.
+      </p>
+      <p>
+        <strong>LinkedIn</strong> profile banners are 1584 × 396, and the profile photo overlaps the
+        lower left corner on desktop. The mobile app crops the sides in further, so the usable area
+        is a band across the middle and to the right of where the photo sits.
+      </p>
+      <p>
+        <strong>Facebook</strong> page covers are 820 × 312 on a desktop browser and are cropped to
+        a squarer shape on a phone, taking slices off the left and right. Keeping the important part
+        of the picture within the centre is the only version that survives both.
+      </p>
+      <p>
+        <strong>X</strong> shows attached images at 16:9 in the timeline, so 1600 × 900 fits without
+        anything being cut. A taller image is not lost, but it is cropped to that shape until
+        someone taps it, and a caption near the bottom is the usual casualty.
+      </p>
+
+      <h2 id="sizes">Common image sizes</h2>
+      <p>
+        These are the presets built into the tool, grouped by platform. Anything not listed can be
+        typed in directly.
       </p>
       <!-- Scrolls the table rather than the page body on a narrow phone.
-           tabindex/role make the scroll region keyboard-reachable. -->
+           tabindex/role make the scroll region keyboard-reachable.
+
+           The names here are spelled out in full where the tool shortens
+           them to "Post" or "Cover" — a reader here has no platform
+           heading above the row to supply the context. The DIMENSIONS are
+           what has to stay in sync with src/lib/presets.ts (§14). -->
       <div class="table-scroll" tabindex="0" role="region" aria-label="Common image sizes">
         <table>
           <thead>
@@ -172,14 +359,14 @@
             <td>Full-screen stories and reels</td>
           </tr>
           <tr>
+            <td>YouTube Thumbnail</td>
+            <td class="num">1280 × 720</td>
+            <td>Video thumbnails</td>
+          </tr>
+          <tr>
             <td>Facebook Cover</td>
             <td class="num">820 × 312</td>
             <td>The banner across the top of a page</td>
-          </tr>
-          <tr>
-            <td>YouTube</td>
-            <td class="num">1280 × 720</td>
-            <td>Video thumbnails</td>
           </tr>
           <tr>
             <td>LinkedIn Banner</td>
@@ -220,7 +407,7 @@
         </table>
       </div>
 
-      <h2>Questions</h2>
+      <h2 id="faq">Questions</h2>
 
       <h3>Are my images uploaded to a server?</h3>
       <p>
@@ -251,6 +438,28 @@
       <p>
         No. Downsize is free, has no account, and adds no watermark. There is no paid tier to
         upgrade to.
+      </p>
+
+      <h3>Does Downsize work offline?</h3>
+      <p>
+        Once the page has loaded, yes. Nothing is fetched while you resize an image, so the
+        connection can drop and the tool keeps working. Loading the page in the first place still
+        needs a connection, because there is no installed copy of it on your device.
+      </p>
+
+      <h3>Why is my PNG bigger after resizing?</h3>
+      <p>
+        PNG stores every pixel exactly, and it compresses by finding repetition. A photograph saved
+        as a PNG has very little repetition to find, so shrinking it removes pixels but can still
+        leave a file larger than the JPG you started from. If the original was a JPG, the honest
+        comparison is against another JPG.
+      </p>
+
+      <h3>Can I resize several images at once?</h3>
+      <p>
+        Not yet. Downsize handles one image at a time, and the resize is fast enough that repeating
+        it for a handful of files is quicker than it sounds. Batch mode is a reasonable thing to
+        want and it is not ruled out.
       </p>
 
       <footer>
