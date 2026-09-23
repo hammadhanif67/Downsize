@@ -57,3 +57,52 @@ export function encodableFormats(): Promise<Set<SupportedMime>> {
   cached ??= probe();
   return cached;
 }
+
+// ---------------------------------------------------------------------
+// Regression guard for the probe itself.
+//
+// The probe's failure mode is invisible: a format silently missing from
+// the list looks exactly like a legitimate browser limitation, not a bug.
+// It shipped that way once — convertToBlob throws InvalidStateError on a
+// canvas that has never had a 2D context, so every format failed and the
+// list collapsed to the PNG safety net. Nothing errored. The UI just
+// quietly offered less.
+//
+// toDataURL is an INDEPENDENT oracle: a different API on a different
+// object, not sharing the code path under test. If it says the browser
+// can write WEBP and the probe disagrees, the probe is wrong — a browser
+// does not support a format through one canvas API and not the other.
+// ---------------------------------------------------------------------
+function oracleCanEncode(mime: SupportedMime): boolean {
+  if (typeof document === 'undefined') return false; // worker: no oracle, skip
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL(mime).startsWith(`data:${mime}`);
+  } catch {
+    return false;
+  }
+}
+
+// Formats the oracle says this browser can encode but the probe missed.
+// Empty is the only acceptable answer. Exported so it can be asserted
+// from outside as well as checked in dev (§14).
+export async function auditEncodableFormats(): Promise<SupportedMime[]> {
+  const found = await encodableFormats();
+  return ALL_FORMATS.filter((mime) => oracleCanEncode(mime) && !found.has(mime));
+}
+
+if (import.meta.env.DEV) {
+  void auditEncodableFormats().then((missing) => {
+    if (missing.length === 0) return;
+    // Not a thrown error: this runs inside an async chain, and throwing
+    // here would become an unhandled rejection — which is the same silent
+    // failure this guard exists to catch.
+    console.error(
+      `[downsize] Encode probe is WRONG. This browser can encode ${missing.join(', ')} ` +
+        `but encodableFormats() left them out, so the Convert tab is offering less than it should. ` +
+        `See probe() in lib/image/formats.ts.`,
+    );
+  });
+}

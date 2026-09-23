@@ -831,6 +831,18 @@ Ship only when all of these pass:
 **Conversion**
 - [ ] The format list contains only formats this browser can actually ENCODE,
       verified by the returned `blob.type` rather than assumed
+- [ ] **On a browser that encodes WEBP, the list contains all three formats.**
+      `auditEncodableFormats()` cross-checks the probe against `toDataURL`, an
+      independent canvas API, and must return an empty array. The probe's
+      failure mode is invisible by eye — a missing format looks like a
+      browser limitation, not a bug — so this is asserted, not noticed. It
+      also logs loudly in dev
+- [ ] axe runs on the **Convert tab**, not only Resize and Compress. The
+      colour swatches and `<input type="color">` are control primitives that
+      appear nowhere else in the app
+- [ ] The swatch borders clear 3:1 (1.4.11). A white swatch on `--paper` in
+      light theme is a white square on a near-white background — the border
+      is the only thing that makes it a visible control, in both themes
 - [ ] The source's own format is not offered twice — "Keep original (PNG)"
       already is that option
 - [ ] An OPAQUE PNG converted to JPG shows no transparency warning at all.
