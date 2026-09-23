@@ -27,31 +27,39 @@ function ResizeControls({ settings, setWidth, setHeight, setPercentage, setMode,
             the real HTML disabled attribute, not just a dimmed look, so
             nothing on screen can appear interactive while actually being
             ignored. */}
+        {/* min-h-11 (44px) on each label so the whole "radio + word" is a
+            touch target, not just the 13px dot. */}
         <fieldset className="m-0 flex gap-4 border-0 p-0">
           <legend className="sr-only">Resize by</legend>
-          <label className="flex items-center gap-2 text-body text-ink">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-body text-ink">
             <input
               type="radio"
               name="resize-mode"
               value="dimensions"
               checked={!isPercentage}
               onChange={() => setMode('dimensions')}
+              className="h-4 w-4"
             />
             Exact size
           </label>
-          <label className="flex items-center gap-2 text-body text-ink">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-body text-ink">
             <input
               type="radio"
               name="resize-mode"
               value="percentage"
               checked={isPercentage}
               onChange={() => setMode('percentage')}
+              className="h-4 w-4"
             />
             Percentage
           </label>
         </fieldset>
 
-        <button type="button" onClick={reset} className="focus-ring text-body text-ink-muted underline">
+        <button
+          type="button"
+          onClick={reset}
+          className="focus-ring flex min-h-11 items-center text-body text-ink-muted underline"
+        >
           Reset
         </button>
       </div>
@@ -95,7 +103,10 @@ function ResizeControls({ settings, setWidth, setHeight, setPercentage, setMode,
           value={settings.percentage}
           disabled={!isPercentage}
           onChange={(e) => setPercentage(Number(e.target.value))}
-          className="focus-ring mt-2 w-full disabled:cursor-not-allowed disabled:opacity-50"
+          // h-11 gives the slider a 44px grab area; accent-color is what
+          // actually tints the filled track and thumb, and it carries the
+          // 120ms colour transition on focus from the motion list.
+          className="focus-ring mt-2 h-11 w-full accent-accent transition-colors duration-[120ms] focus-visible:accent-accent-ink disabled:cursor-not-allowed disabled:opacity-50"
         />
       </div>
     </div>

@@ -75,7 +75,8 @@ function FileCard({ source, isLoading, onReplace, onClear }: FileCardProps) {
           e.stopPropagation();
           onClear();
         }}
-        className="focus-ring shrink-0 p-1 text-ink-muted"
+        // 44x44 touch target; the icon stays 16px.
+        className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center text-ink-muted"
       >
         <X aria-hidden="true" className="h-4 w-4" />
       </button>

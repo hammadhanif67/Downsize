@@ -2,26 +2,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <title>Resize an Image Online — Free, Private, No Upload | Downsize</title>
     <meta
       name="description"
       content="Resize JPG, PNG and WEBP images in your browser. Your files never leave your device. No sign-up, no watermark, no upload."
     />
-    <link rel="canonical" href="https://downsizeimage.com/" />
+    <meta name="robots" content="index,follow" />
+    <meta name="author" content="Hammad Minhas" />
+    <!-- %VITE_SITE_URL% is substituted at build time from the one value in
+         vite.config.ts's resolveSiteUrl(). Never hardcode a domain here. -->
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
     <meta name="theme-color" content="#FFFFFF" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://downsizeimage.com/" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
     <meta property="og:title" content="Downsize — Resize images in your browser" />
     <meta
       property="og:description"
       content="Resize JPG, PNG and WEBP without uploading. Everything happens on your device."
     />
-    <meta property="og:image" content="https://downsizeimage.com/og-image.png" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
 
+    <!-- .ico first and with sizes="any": browsers and crawlers hit
+         /favicon.ico by path whatever the link tags say, and declaring it
+         first keeps a modern browser from picking the SVG for contexts the
+         ICO serves better. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
@@ -30,7 +39,7 @@
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "Downsize",
-        "url": "https://downsizeimage.com/",
+        "url": "%VITE_SITE_URL%/",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Any browser",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -97,7 +106,7 @@
       component: a crawler gets the whole article on the first byte, with
       no JS execution required. This is also the page's single <main>.
     -->
-    <main class="page-content">
+    <main class="page-content enter enter-3">
       <h1>Resize an image without uploading it</h1>
       <p>
         Downsize changes the dimensions of a JPG, PNG or WEBP image using your browser's own image
@@ -135,8 +144,11 @@
       <p>
         These are the presets built into the tool. Anything not listed can be typed in directly.
       </p>
-      <table>
-        <thead>
+      <!-- Scrolls the table rather than the page body on a narrow phone.
+           tabindex/role make the scroll region keyboard-reachable. -->
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Common image sizes">
+        <table>
+          <thead>
           <tr>
             <th scope="col">Preset</th>
             <th scope="col">Dimensions</th>
@@ -204,8 +216,9 @@
             <td class="num">25%</td>
             <td>Quarters both dimensions of the original</td>
           </tr>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
       <h2>Questions</h2>
 
@@ -245,6 +258,10 @@
           Downsize is a free tool for resizing images in the browser. Nothing you open here is
           uploaded. © 2026
         </p>
+        <!-- Only the name animates: it rises 8px over 400ms, 250ms behind
+             the rest of the footer. Under prefers-reduced-motion the delay
+             and duration are both zeroed, so it simply appears. -->
+        <p>Built by <span class="footer-name">Hammad Minhas</span></p>
       </footer>
     </main>
   </body>

@@ -53,8 +53,11 @@ function NumberField({ id, label, value, unit = 'px', onChange, onCommit, disabl
       <label htmlFor={id} className={`w-20 shrink-0 text-body ${disabled ? 'text-ink-muted' : 'text-ink'}`}>
         {label}
       </label>
+      {/* min-h-11 = 44px: the whole field is a touch target, not just the
+          text. The border-colour change on focus is the 120ms colour
+          transition from the motion list. */}
       <div
-        className={`flex w-28 items-center border border-rule has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+        className={`flex min-h-11 w-28 items-center border border-rule transition-colors duration-[120ms] has-[:focus-visible]:border-accent has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
           disabled ? 'opacity-50' : ''
         }`}
       >
@@ -69,7 +72,10 @@ function NumberField({ id, label, value, unit = 'px', onChange, onCommit, disabl
             isFocused.current = true;
           }}
           onBlur={handleBlur}
-          className="w-full min-w-0 bg-transparent px-2 py-1.5 text-right font-mono text-body text-ink outline-none disabled:cursor-not-allowed"
+          // text-base (16px), not text-body (15px): iOS zooms the viewport
+          // on focus for any input under 16px. This is the whole reason
+          // the field is a touch larger than the surrounding body text.
+          className="w-full min-w-0 bg-transparent px-2 py-1.5 text-right font-mono text-base text-ink outline-none disabled:cursor-not-allowed"
         />
         <span className="shrink-0 pr-2 font-mono text-caption text-ink-muted">{unit}</span>
       </div>

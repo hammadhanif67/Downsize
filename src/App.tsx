@@ -30,7 +30,9 @@ function App() {
   return (
     <div className="bg-paper">
       <Header />
-      <div className="mx-auto max-w-[1240px] px-4 py-10 sm:px-6">
+      {/* Second step of the page-load sequence; the header is first and the
+          static article is third (see index.css). Runs once. */}
+      <div className="enter enter-2 mx-auto max-w-[1240px] px-4 py-10 sm:px-6">
         {!source && (
           <>
             <Dropzone onFileSelected={load} isLoading={isLoading} />

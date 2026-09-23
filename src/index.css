@@ -82,8 +82,14 @@
    Measure is capped at 68 characters (§9.1). The table is the one place
    mono appears, and only in the dimensions column, because those are
    numbers. */
+/* The article sits in the SAME 1240px container as the header and the
+   tool, with the same horizontal padding, and the 68ch measure is applied
+   to its children — so the text's left edge lines up with the wordmark and
+   the preview all the way down the page. Centring the measure instead
+   gives the page two different centres, which reads as two documents
+   stapled together. */
 .page-content {
-  max-width: 68ch;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 3.5rem 1rem 4rem;
   color: var(--ink);
@@ -93,6 +99,23 @@
   .page-content {
     padding: 4.5rem 1.5rem 5rem;
   }
+}
+
+.page-content > * {
+  max-width: 68ch;
+}
+
+/* The presets table is wider than 68ch on a phone. Scroll the TABLE, not
+   the page — a horizontally scrolling body is the thing this is avoiding.
+   tabindex + role make the scroll region reachable by keyboard, which a
+   bare overflow container is not. */
+.table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.table-scroll table {
+  min-width: 34rem;
 }
 
 .page-content h1 {
@@ -179,13 +202,72 @@
   margin: 0;
 }
 
+/* ---------------------------------------------------------------------
+   Motion. This is the complete list for the whole app; there is nothing
+   else anywhere. Every one of them resolves instantly to its END state
+   under prefers-reduced-motion (see the block at the bottom).
+
+   1. page-load sequence — header, tool, content: 300ms fade, 80ms apart,
+      once
+   2. preview cross-fade, 150ms (ImageCanvas, set inline)
+   3. number fields + slider: 120ms colour on focus
+   4. preset cells: 120ms border colour on hover/selection
+   5. the footer name: 400ms rise, 250ms after the footer
+   --------------------------------------------------------------------- */
+
+@keyframes downsize-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes downsize-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* `both` fill mode is load-bearing: it holds opacity 0 through the delay,
+   so a staggered element does not flash in and then fade. */
+.enter {
+  animation: downsize-fade-in 300ms ease-out both;
+}
+
+.enter-2 {
+  animation-delay: 80ms;
+}
+
+.enter-3 {
+  animation-delay: 160ms;
+}
+
+/* Only the name moves. The rest of the footer is already in place. */
+.footer-name {
+  display: inline-block;
+  animation: downsize-rise-in 400ms ease-out 250ms both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* Zeroing the DELAY matters as much as the duration: a delayed
+       animation with duration 0 still waits, then pops. The footer name
+       (250ms) and the staggered page-load (80/160ms) both depend on this
+       to appear with no movement at all rather than a late snap. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
 }

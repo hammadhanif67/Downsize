@@ -97,7 +97,15 @@ function Workspace({
           <div className="pb-4">
             <SizeComparison source={source} result={result} />
           </div>
-          <DownloadBar source={source} result={result} />
+          {/* pb keeps the button clear of the iOS home indicator when it is
+              stuck to the bottom of the viewport; env() resolves to 0 on
+              every device that does not have one. */}
+          <div
+            className="sticky bottom-0 bg-paper lg:static"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            <DownloadBar source={source} result={result} />
+          </div>
         </div>
       </div>
     </div>

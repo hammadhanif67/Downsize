@@ -15,7 +15,7 @@ function Toggle({ id, label, checked, onChange }: ToggleProps) {
   return (
     <label
       htmlFor={id}
-      className="flex w-fit cursor-pointer items-center gap-2 text-body text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
+      className="flex min-h-11 w-fit cursor-pointer items-center gap-2 pr-2 text-body text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent"
     >
       <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="sr-only" />
       {/* The icon SHAPE carries the state (Link vs Unlink); it doesn't also

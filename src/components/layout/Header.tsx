@@ -12,7 +12,7 @@ import Logo from './Logo';
 // against the wordmark's line box lands it on the cap height.
 function Header() {
   return (
-    <header className="border-b border-rule">
+    <header className="enter border-b border-rule">
       <div className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-2.5">
           <Logo size={22} />

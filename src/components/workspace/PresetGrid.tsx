@@ -49,8 +49,15 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
                 type="button"
                 aria-pressed={selected}
                 onClick={() => onApply(preset)}
-                className={`focus-ring flex h-16 flex-col justify-center gap-0.5 overflow-hidden border-r border-b border-rule px-3 text-left ${
-                  selected ? 'shadow-[inset_0_0_0_2px_var(--accent)]' : ''
+                // h-16 (64px) already clears the 44px touch minimum.
+                // Hover and selection are both inset rings rather than
+                // border colours — in a border-collapsed grid a cell only
+                // owns its right/bottom edge, so a border-colour change
+                // would light up two sides of four. Transitioned at 120ms.
+                className={`focus-ring flex h-16 flex-col justify-center gap-0.5 overflow-hidden border-r border-b border-rule px-3 text-left transition-shadow duration-[120ms] ${
+                  selected
+                    ? 'shadow-[inset_0_0_0_2px_var(--accent)]'
+                    : 'hover:shadow-[inset_0_0_0_1px_var(--ink-muted)]'
                 }`}
               >
                 <span className="truncate text-body text-ink">{preset.label}</span>

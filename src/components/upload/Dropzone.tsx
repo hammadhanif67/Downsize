@@ -75,6 +75,12 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
     if (file) onFileSelected(file);
   }
 
+  // The primary action of the page and the first thing anyone sees, so
+  // this is the one element allowed to carry colour: accent icon at rest,
+  // solid accent border on hover, and a 2px border over a 6% accent tint
+  // while a file is actually over it. Still zero radius, no shadow, no
+  // gradient — and no transition, because the agreed motion list does not
+  // include one here.
   return (
     <div
       role="button"
@@ -87,8 +93,10 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`focus-ring flex cursor-pointer flex-col items-center gap-3 border-2 border-dashed px-6 py-16 text-center ${
-        isDragActive ? 'border-accent' : 'border-rule'
+      className={`focus-ring flex cursor-pointer flex-col items-center gap-3 px-6 py-16 text-center ${
+        isDragActive
+          ? 'border-2 border-solid border-accent bg-accent/[0.06]'
+          : 'border border-dashed border-rule bg-surface hover:border-solid hover:border-accent hover:bg-paper'
       }`}
     >
       {isLoading ? (
@@ -98,7 +106,7 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
         </>
       ) : (
         <>
-          <ImageUp aria-hidden="true" className="h-8 w-8 text-ink-muted" />
+          <ImageUp aria-hidden="true" className="h-8 w-8 text-accent" />
           <h3 className="text-h3 font-medium text-ink">Drop an image to resize</h3>
           <p className="text-body text-ink-muted">JPG, PNG or WEBP · up to 30 MB · nothing leaves your device</p>
           <Button
