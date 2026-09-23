@@ -5,6 +5,10 @@ import Button from '../ui/Button';
 import Spinner from '../ui/Spinner';
 import { FILE_ERROR_ID } from './FileError';
 
+// Whichever of the two states is showing carries this id, so the
+// dropzone's accessible name is always real visible text.
+const DROPZONE_LABEL_ID = 'dropzone-label';
+
 interface DropzoneProps {
   onFileSelected: (file: File) => void;
   isLoading: boolean;
@@ -85,7 +89,11 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
     <div
       role="button"
       tabIndex={0}
-      aria-label="Drop an image to resize, or choose a file"
+      // Named by its own visible heading rather than an aria-label.
+      // WCAG 2.5.3 (Label in Name) wants the accessible name to contain
+      // the visible text; an aria-label that paraphrases it means someone
+      // driving the page by voice can say what they see and match nothing.
+      aria-labelledby={DROPZONE_LABEL_ID}
       aria-describedby={FILE_ERROR_ID}
       onClick={openPicker}
       onKeyDown={handleKeyDown}
@@ -102,12 +110,16 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
       {isLoading ? (
         <>
           <Spinner className="h-8 w-8 text-ink-muted" />
-          <p className="text-body text-ink-muted">Opening image</p>
+          <p id={DROPZONE_LABEL_ID} className="text-body text-ink-muted">
+            Opening image
+          </p>
         </>
       ) : (
         <>
           <ImageUp aria-hidden="true" className="h-8 w-8 text-accent" />
-          <h3 className="text-h3 font-medium text-ink">Drop an image to resize</h3>
+          <h3 id={DROPZONE_LABEL_ID} className="text-h3 font-medium text-ink">
+            Drop an image to resize
+          </h3>
           <p className="text-body text-ink-muted">JPG, PNG or WEBP · up to 30 MB · nothing leaves your device</p>
           <Button
             onClick={(e) => {
