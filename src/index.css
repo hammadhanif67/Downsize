@@ -29,6 +29,9 @@
   --ink: #000000;
   --ink-muted: #4a5260;
   --rule: #d6dbe1;
+  /* Borders of interactive things only — see the note by the @theme
+     bridge. 3.42:1 on --paper, 3.19:1 on --surface. */
+  --rule-strong: #848b99;
   --accent: #1b4fd8;
   --accent-ink: #0a3099; /* hover/active only */
   --danger: #b3261e;
@@ -48,6 +51,8 @@
   --ink: #f2f4f7;
   --ink-muted: #9aa3af;
   --rule: #262c34;
+  /* 3.46:1 on --paper, 3.17:1 on --surface. */
+  --rule-strong: #606875;
   /* Lightened from #1B4FD8, which is 1.46:1 on #0B0D10 — invisible. */
   --accent: #4c7dff;
   --accent-ink: #6b95ff;
@@ -65,6 +70,7 @@
     --ink: #f2f4f7;
     --ink-muted: #9aa3af;
     --rule: #262c34;
+    --rule-strong: #606875;
     --accent: #4c7dff;
     --accent-ink: #6b95ff;
     --danger: #ff6b61;
@@ -72,14 +78,42 @@
   }
 }
 
-/* Bridge the tokens into Tailwind's theme so utilities are generated from
-   them: bg-paper, text-ink-muted, border-rule, outline-accent, etc. */
+/* --rule vs --rule-strong
+   ---------------------------------------------------------------------
+   Both are hairlines and they look like the same idea, so the split has
+   to be stated or it will collapse back within a month:
+
+     --rule          dividers and decorative frames. Section rules, the
+                     column separator, table cell borders, the ruler
+                     ticks, the frame round a thumbnail. 1.39:1 light and
+                     1.38:1 dark, which is fine — WCAG 1.4.11 exempts
+                     purely decorative lines.
+
+     --rule-strong   the border of anything you can click, type into or
+                     drop onto. Number fields, preset cells, the
+                     secondary button, the dropzone, the file card.
+                     Those are user interface components, and 1.4.11
+                     wants 3:1 for the visual information that identifies
+                     them. A 1.39:1 border does not identify anything.
+
+   The test for which one to reach for: if the line went missing, would
+   you lose a boundary you need in order to operate the thing? Then it is
+   --rule-strong. If you would only lose tidiness, it is --rule.
+
+   A border sits between a component's fill and the page, so --rule-strong
+   clears 3:1 against BOTH --paper and --surface, not just one. --surface
+   is the binding side in each theme. Ratios are on the tokens above.
+
+   Bridged into Tailwind's theme so utilities are generated from them:
+   bg-paper, text-ink-muted, border-rule, border-rule-strong,
+   outline-accent, etc. */
 @theme {
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-danger: var(--danger);

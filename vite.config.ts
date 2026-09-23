@@ -29,8 +29,46 @@ function siteFiles(siteUrl: string): Plugin {
     // .env is gitignored — shipping the literal "%VITE_SITE_URL%/" as the
     // canonical. Resolving it through the same siteUrl the sitemap uses
     // keeps the two from ever disagreeing.
-    transformIndexHtml(html) {
-      return html.replaceAll('%VITE_SITE_URL%', siteUrl)
+    // `post` + the object form so this runs late enough that ctx.bundle
+    // exists: the font filename is content-hashed, so it cannot be written
+    // into index.html by hand and has to be read back out of the build.
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        let out = html.replaceAll('%VITE_SITE_URL%', siteUrl)
+
+        // Preload the Instrument Sans latin subset.
+        //
+        // Without it the font arrives after first paint, the fallback is
+        // swapped out, and the first <h2> reflows — Lighthouse attributed
+        // the whole of a 0.002 desktop CLS to exactly that. Small, but it
+        // is the only shift left and this is the cheap half of the fix.
+        //
+        // Only the `latin` subset, not `latin-ext`: preloading a file the
+        // page will not use costs real bytes on the critical path, and
+        // English content never touches the ext subset. Only the sans,
+        // not IBM Plex Mono, which sets a handful of numbers and was not
+        // implicated.
+        //
+        // crossorigin is mandatory even same-origin — fonts are fetched
+        // in CORS mode, and a preload without it is downloaded twice.
+        //
+        // ctx.bundle is undefined in dev, where the font is served
+        // unhashed from node_modules and there is nothing to preload.
+        const font = ctx.bundle
+          ? Object.keys(ctx.bundle).find((f) =>
+              /instrument-sans-latin-wght-normal-[^/]*\.woff2$/.test(f),
+            )
+          : undefined
+
+        if (font) {
+          out = out.replace(
+            '</head>',
+            `  <link rel="preload" href="/${font}" as="font" type="font/woff2" crossorigin />\n  </head>`,
+          )
+        }
+        return out
+      },
     },
 
     configureServer(server) {

@@ -57,7 +57,7 @@ function NumberField({ id, label, value, unit = 'px', onChange, onCommit, disabl
           text. The border-colour change on focus is the 120ms colour
           transition from the motion list. */}
       <div
-        className={`flex min-h-11 w-28 items-center border border-rule transition-colors duration-[120ms] has-[:focus-visible]:border-accent has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+        className={`flex min-h-11 w-28 items-center border border-rule-strong transition-colors duration-[120ms] has-[:focus-visible]:border-accent has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
           disabled ? 'opacity-50' : ''
         }`}
       >

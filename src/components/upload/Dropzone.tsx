@@ -102,7 +102,7 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
       className={`flex min-h-[320px] flex-col items-center justify-center gap-3 px-6 py-16 text-center ${
         isDragActive
           ? 'border-2 border-solid border-accent bg-accent/[0.06]'
-          : 'border border-dashed border-rule bg-surface hover:border-solid hover:border-accent hover:bg-paper'
+          : 'border border-dashed border-rule-strong bg-surface hover:border-solid hover:border-accent hover:bg-paper'
       }`}
     >
       {isLoading ? (

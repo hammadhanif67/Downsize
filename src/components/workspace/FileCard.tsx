@@ -49,7 +49,7 @@ function FileCard({ source, isLoading, onReplace, onClear }: FileCardProps) {
       aria-label={`${source.file.name} — click to choose a different image`}
       onClick={openPicker}
       onKeyDown={handleKeyDown}
-      className="focus-ring flex cursor-pointer items-center gap-3 border border-rule p-2"
+      className="focus-ring flex cursor-pointer items-center gap-3 border border-rule-strong p-2"
     >
       {isLoading ? (
         <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-rule bg-surface">

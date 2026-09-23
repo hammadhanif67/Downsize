@@ -13,7 +13,7 @@ function Button({ variant = 'secondary', className = '', type = 'button', ...pro
   const base = 'focus-ring px-4 py-2 text-body disabled:cursor-not-allowed disabled:opacity-40';
   const variants = {
     primary: 'bg-accent text-paper hover:bg-accent-ink',
-    secondary: 'border border-rule text-ink',
+    secondary: 'border border-rule-strong text-ink',
   };
   return <button type={type} className={`${base} ${variants[variant]} ${className}`} {...props} />;
 }

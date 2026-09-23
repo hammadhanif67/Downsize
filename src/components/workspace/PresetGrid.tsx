@@ -72,7 +72,7 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
           single arrangement means there's no breakpoint where the row
           silently reflows. Three across gives 136px a cell — every label
           clears with room to spare. */}
-      <div className="grid grid-cols-3 border-t border-l border-rule">
+      <div className="grid grid-cols-3 border-t border-l border-rule-strong">
         {PLATFORMS.map((platform, index) => {
           const Icon = ICONS[platform.id];
           const isOpen = openPlatform === platform.id;
@@ -87,7 +87,7 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
               aria-controls={isOpen ? 'preset-sizes' : undefined}
               onClick={() => setOpenPlatform(isOpen ? null : platform.id)}
               onKeyDown={(e) => handleKeyDown(e, index)}
-              className={`focus-ring flex min-h-[3.75rem] flex-col items-center justify-center gap-1 border-r border-b border-rule px-1 py-2 transition-colors duration-[120ms] ${
+              className={`focus-ring flex min-h-[3.75rem] flex-col items-center justify-center gap-1 border-r border-b border-rule-strong px-1 py-2 transition-colors duration-[120ms] ${
                 isOpen ? 'border-b-2 border-b-accent text-ink' : 'text-ink-muted hover:text-ink'
               }`}
             >
@@ -99,7 +99,7 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
       </div>
 
       {openPlatform && (
-        <div id="preset-sizes" className="grid grid-cols-3 border-l border-rule">
+        <div id="preset-sizes" className="grid grid-cols-3 border-l border-rule-strong">
           {openPresets.map((preset) => {
             const selected = presetId === preset.id;
             return (
@@ -108,7 +108,7 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
                 type="button"
                 aria-pressed={selected}
                 onClick={() => onApply(preset)}
-                className={`focus-ring flex h-16 flex-col justify-center gap-0.5 overflow-hidden border-r border-b border-rule px-3 text-left transition-shadow duration-[120ms] ${
+                className={`focus-ring flex h-16 flex-col justify-center gap-0.5 overflow-hidden border-r border-b border-rule-strong px-3 text-left transition-shadow duration-[120ms] ${
                   selected
                     ? 'shadow-[inset_0_0_0_2px_var(--accent)]'
                     : 'hover:shadow-[inset_0_0_0_1px_var(--ink-muted)]'

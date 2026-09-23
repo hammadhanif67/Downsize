@@ -666,6 +666,9 @@ Ship only when all of these pass:
 - [ ] Hard reload with dark stored shows no white frame before paint
 - [ ] The choice survives a reload, and an explicit light beats a dark OS
 - [ ] System mode follows the OS setting with no reload
+- [ ] `--rule-strong` clears 3:1 against BOTH `--paper` and `--surface` in both
+      themes (WCAG 1.4.11), and every border on something clickable, typable or
+      droppable uses it rather than `--rule`
 - [ ] Every text/background pair passes WCAG AA in BOTH themes — measured from the
       rendered page, not from the token list, and with transitions disabled first
       (a frozen mid-transition colour reads as a failure that is not there)
@@ -681,6 +684,13 @@ Ship only when all of these pass:
       screenshot
 
 **Layout stability**
+- [ ] **`#root` reserves the tool's exact height before React mounts; verify with
+      JS enabled AND disabled.** Added as a standing regression note 2026-09-23
+      after this went unnoticed through six phases. It will come back the next
+      time the tool's empty-state height changes — the dropzone's min-height,
+      the section padding, or the navbar — because nothing about editing those
+      points at the reservation in `index.css`. Check it whenever any of them
+      move.
 - [ ] `#root`'s reserved min-height equals the rendered empty-state height
       exactly, at 320/360/390/414/640/768/1024/1440. It ships empty with `<main>`
       after it, so any mismatch shoves the whole article down when the bundle
