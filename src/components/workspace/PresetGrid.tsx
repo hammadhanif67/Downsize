@@ -27,9 +27,6 @@ function presetSecondaryLine(preset: Preset): string {
 // top come from a neighbor or the wrapper), so a border-color change alone
 // would only light up two of the cell's four sides. An inset shadow draws a
 // complete ring inside the cell's own box without touching the shared grid.
-//
-// Moved here from workspace/ (Phase A restructure) — presets are a sidebar
-// concern now, grouped with "1. Image" under the same left rail.
 function PresetGrid({ presetId, onApply }: PresetGridProps) {
   const selectedPreset = PRESETS.find((p) => p.id === presetId) ?? null;
   const showStretchNote = selectedPreset?.kind === 'dimensions' && selectedPreset.height !== null;
@@ -40,7 +37,7 @@ function PresetGrid({ presetId, onApply }: PresetGridProps) {
         {GROUPS.flatMap((group) => [
           <div
             key={`heading-${group}`}
-            className="col-span-3 border-r border-b border-rule bg-paper px-3 py-1.5 text-caption font-medium text-ink-muted"
+            className="col-span-3 border-r border-b border-rule bg-surface px-3 py-1.5 text-caption font-medium text-ink-muted"
           >
             {group}
           </div>,

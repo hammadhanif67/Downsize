@@ -1,9 +1,11 @@
 import ImageCanvas from './ImageCanvas';
+import FileCard from './FileCard';
 import SizeComparison from './SizeComparison';
-import ToolTabs from './ToolTabs';
 import ResizeControls from './ResizeControls';
+import PresetGrid from './PresetGrid';
 import DownloadBar from './DownloadBar';
 import FileError from '../upload/FileError';
+import type { Preset } from '../../lib/presets';
 import type { AppError, ResizeResult, ResizeSettings, SourceImage } from '../../types';
 
 interface WorkspaceProps {
@@ -11,44 +13,52 @@ interface WorkspaceProps {
   settings: ResizeSettings;
   result: ResizeResult | null;
   isProcessing: boolean;
+  isLoading: boolean;
+  fileError: AppError | null;
   resizeError: AppError | null;
+  onReplace: (file: File) => void;
+  onClear: () => void;
   setWidth: (value: number) => void;
   setHeight: (value: number) => void;
   setPercentage: (value: number) => void;
   setMode: (mode: 'dimensions' | 'percentage') => void;
   toggleLock: () => void;
   reset: () => void;
+  applyPreset: (preset: Preset) => void;
 }
 
-// Center column (spec, Phase A restructure). Presets and the file picker
-// moved out to the sidebar; this is preview + tools + result now. Three
-// flat bordered boxes — image, tabs+panel, before/after+download — 0
-// radius, no shadow, not a "card kit": each border is either separating
-// two things or is a real frame, same discipline as everywhere else.
+// Preview left (~62%), controls right (~38%). The controls column reads as
+// one panel — a left border and internal padding at desktop, its sections
+// separated by full-width rules — rather than a stack of floating widgets
+// or a set of separately bordered boxes.
 //
-// The before/after box renders unconditionally (once source exists), not
-// gated on `result` — gating it would make the WHOLE box pop into
-// existence the moment the first debounced resize finishes, which is
-// itself a layout shift. Rendering it early with an empty "After" slot
-// avoids that; SizeComparison handles the null-result state internally.
+// No lg:items-start on the row: the default flex `stretch` is what makes
+// both columns take the height of the taller one, so the panel's left
+// border runs the full height of the workspace rather than stopping
+// wherever its own content happens to end.
 function Workspace({
   source,
   settings,
   result,
   isProcessing,
+  isLoading,
+  fileError,
   resizeError,
+  onReplace,
+  onClear,
   setWidth,
   setHeight,
   setPercentage,
   setMode,
   toggleLock,
   reset,
+  applyPreset,
 }: WorkspaceProps) {
   const displayed = result ?? source;
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
+    <div className="flex flex-col gap-8 lg:flex-row">
+      <div className="min-w-0 lg:w-[62%]">
         <ImageCanvas
           src={displayed.previewUrl}
           width={displayed.width}
@@ -61,9 +71,13 @@ function Workspace({
         <FileError error={resizeError} />
       </div>
 
-      <div className="border border-rule">
-        <ToolTabs />
-        <div id="panel-resize" role="tabpanel" aria-labelledby="tab-resize" className="p-6">
+      <div className="flex min-w-0 flex-col lg:w-[38%] lg:border-l lg:border-rule lg:pl-8">
+        <div className="pb-6">
+          <FileCard source={source} isLoading={isLoading} onReplace={onReplace} onClear={onClear} />
+          <FileError error={fileError} />
+        </div>
+
+        <div className="border-t border-rule py-6">
           <ResizeControls
             settings={settings}
             setWidth={setWidth}
@@ -74,18 +88,15 @@ function Workspace({
             reset={reset}
           />
         </div>
-      </div>
 
-      <div className="border border-rule">
-        <div className="p-6">
-          <SizeComparison source={source} result={result} />
+        <div className="border-t border-rule py-6">
+          <PresetGrid presetId={settings.presetId} onApply={applyPreset} />
         </div>
-        {/* Sticky to the viewport bottom below 1024px (spec). Stays inside
-            this box's own width rather than bleeding full-width — Box 3
-            has a real left/right border now (it didn't before this phase),
-            and escaping past it while stuck would visually cut through its
-            own frame. Desktop drops back to plain static flow, no sticky. */}
-        <div className="sticky bottom-0 border-t border-rule bg-paper p-4 sm:p-6 lg:static lg:p-6">
+
+        <div className="border-t border-rule pt-6">
+          <div className="pb-4">
+            <SizeComparison source={source} result={result} />
+          </div>
           <DownloadBar source={source} result={result} />
         </div>
       </div>

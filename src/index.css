@@ -6,12 +6,13 @@
    Tailwind theme keys — because one-off drawing code (the ruler-tick frame)
    reads these directly via var(--rule) etc. rather than through a class. */
 :root {
-  --paper: #f4f5f7;
-  --surface: #ffffff;
-  --ink: #15191f;
-  --ink-muted: #5e6672;
-  --rule: #d9dee5;
+  --paper: #ffffff;
+  --surface: #f5f7f9;
+  --ink: #000000;
+  --ink-muted: #4a5260;
+  --rule: #d6dbe1;
   --accent: #1b4fd8;
+  --accent-ink: #0a3099; /* hover/active only */
   --danger: #b3261e;
 }
 
@@ -24,6 +25,7 @@
   --color-ink-muted: var(--ink-muted);
   --color-rule: var(--rule);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
   --color-danger: var(--danger);
 
   --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
@@ -69,6 +71,112 @@
   .focus-ring {
     @apply outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
   }
+}
+
+/* The static article in index.html (§11). Element-scoped CSS rather than
+   utility classes: React never renders this markup, so there is no
+   component to hang classes off, and a reading region with a dozen element
+   types is exactly what element selectors are for. It shares the app's
+   tokens — same ink, same rule, same mono face — but it is prose, not UI.
+
+   Measure is capped at 68 characters (§9.1). The table is the one place
+   mono appears, and only in the dimensions column, because those are
+   numbers. */
+.page-content {
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: 3.5rem 1rem 4rem;
+  color: var(--ink);
+}
+
+@media (min-width: 640px) {
+  .page-content {
+    padding: 4.5rem 1.5rem 5rem;
+  }
+}
+
+.page-content h1 {
+  font-size: var(--text-h1);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 1.25rem;
+}
+
+/* Each h2 opens a section, so the rule above it is the section divider —
+   no wrapper elements needed to get a line between every block. */
+.page-content h2 {
+  font-size: var(--text-h2);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 3.5rem 0 1rem;
+  padding-top: 3.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.page-content h3 {
+  font-size: var(--text-h3);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 2rem 0 0.5rem;
+}
+
+.page-content p {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  margin: 0 0 1rem;
+}
+
+.page-content ol {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  list-style: decimal;
+}
+
+.page-content li {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.page-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0 1rem;
+  font-size: var(--text-body);
+}
+
+.page-content th,
+.page-content td {
+  border: 1px solid var(--rule);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.page-content th {
+  font-weight: 500;
+  color: var(--ink-muted);
+  background-color: var(--surface);
+}
+
+/* Numbers only — never the label or the description column. */
+.page-content td.num {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  white-space: nowrap;
+}
+
+.page-content footer {
+  margin-top: 3.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--rule);
+}
+
+.page-content footer p {
+  color: var(--ink-muted);
+  margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

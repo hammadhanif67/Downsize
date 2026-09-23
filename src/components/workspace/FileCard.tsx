@@ -19,6 +19,9 @@ interface FileCardProps {
 // guarantee intact here without reimplementing it: this component never
 // touches source lifetime itself, it just calls the same function Dropzone
 // calls. The X is the only way back to the empty state — it calls clear().
+//
+// Sits at the top of the controls column, replacing the old "Use a
+// different image" text link.
 function FileCard({ source, isLoading, onReplace, onClear }: FileCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 

@@ -2,12 +2,250 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Downsize</title>
+
+    <title>Resize an Image Online — Free, Private, No Upload | Downsize</title>
+    <meta
+      name="description"
+      content="Resize JPG, PNG and WEBP images in your browser. Your files never leave your device. No sign-up, no watermark, no upload."
+    />
+    <link rel="canonical" href="https://downsizeimage.com/" />
+    <meta name="theme-color" content="#FFFFFF" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://downsizeimage.com/" />
+    <meta property="og:title" content="Downsize — Resize images in your browser" />
+    <meta
+      property="og:description"
+      content="Resize JPG, PNG and WEBP without uploading. Everything happens on your device."
+    />
+    <meta property="og:image" content="https://downsizeimage.com/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Downsize",
+        "url": "https://downsizeimage.com/",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any browser",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "description": "Resize JPG, PNG and WEBP images locally in the browser."
+      }
+    </script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Are my images uploaded to a server?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Downsize reads the image directly in your browser and does all the work there. The file never leaves your device, and there is no server involved at any point."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What file types can I resize?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "JPG, PNG and WEBP. The image you download is always the same format as the one you opened, so a PNG stays a PNG."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there a file size limit?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Files up to 30 MB are accepted. The limit is checked before the image is opened, so a file that is too large is rejected straight away rather than slowing the page down."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Will resizing reduce the quality?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Making an image smaller keeps it sharp, because the detail is being condensed rather than invented. Enlarging past the original dimensions is allowed but will look soft, since there is no extra detail to draw on."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does it cost anything?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Downsize is free, has no account, and adds no watermark. There is no paid tier to upgrade to."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!--
+      Static content. React mounts into #root above and never touches this
+      markup (spec §11.1), which is why it is here rather than in a
+      component: a crawler gets the whole article on the first byte, with
+      no JS execution required. This is also the page's single <main>.
+    -->
+    <main class="page-content">
+      <h1>Resize an image without uploading it</h1>
+      <p>
+        Downsize changes the dimensions of a JPG, PNG or WEBP image using your browser's own image
+        tools. The file is read from your device and worked on there — it is never sent to a server,
+        and no copy of it exists anywhere but your own machine. Pick a width, or choose one of the
+        common sizes listed further down, and download the result.
+      </p>
+
+      <h2 id="how-it-works">How to resize an image</h2>
+      <ol>
+        <li>Drop an image onto the page, or choose a file from your device.</li>
+        <li>Enter the width you need. The height follows automatically unless you unlock the ratio.</li>
+        <li>Check the before and after figures — dimensions and file size update as you type.</li>
+        <li>Download the resized image.</li>
+      </ol>
+
+      <h2>Why resize in the browser</h2>
+      <p>
+        Most image tools work by uploading your file to a server, changing it there, and sending it
+        back. That means a copy of your photo sits on hardware you do not control, for a length of
+        time nobody tells you. Downsize does the work in the page itself, so there is no upload, no
+        second copy, and nothing left behind to delete.
+      </p>
+      <p>
+        Skipping the upload also removes the waiting. There is no queue and no round trip, so a large
+        photo is resized in well under a second and the preview keeps up while you are still
+        adjusting the number. The only real limit is your own device.
+      </p>
+      <p>
+        There is also nothing to sign up for. No email, no free tier, no watermark on the way out,
+        and no record that you were ever here. Open the page, do the one thing, close the tab.
+      </p>
+
+      <h2>Common image sizes</h2>
+      <p>
+        These are the presets built into the tool. Anything not listed can be typed in directly.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Preset</th>
+            <th scope="col">Dimensions</th>
+            <th scope="col">Used for</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Instagram Post</td>
+            <td class="num">1080 × 1080</td>
+            <td>Square posts in the main feed</td>
+          </tr>
+          <tr>
+            <td>Instagram Portrait</td>
+            <td class="num">1080 × 1350</td>
+            <td>The tallest shape the feed allows</td>
+          </tr>
+          <tr>
+            <td>Instagram Story</td>
+            <td class="num">1080 × 1920</td>
+            <td>Full-screen stories and reels</td>
+          </tr>
+          <tr>
+            <td>Facebook Cover</td>
+            <td class="num">820 × 312</td>
+            <td>The banner across the top of a page</td>
+          </tr>
+          <tr>
+            <td>YouTube</td>
+            <td class="num">1280 × 720</td>
+            <td>Video thumbnails</td>
+          </tr>
+          <tr>
+            <td>LinkedIn Banner</td>
+            <td class="num">1584 × 396</td>
+            <td>The banner behind a profile header</td>
+          </tr>
+          <tr>
+            <td>X Post</td>
+            <td class="num">1600 × 900</td>
+            <td>Images attached to a post</td>
+          </tr>
+          <tr>
+            <td>Full HD</td>
+            <td class="num">1920 wide</td>
+            <td>A full-width image on a desktop screen</td>
+          </tr>
+          <tr>
+            <td>Blog body</td>
+            <td class="num">1200 wide</td>
+            <td>Images sitting inside an article column</td>
+          </tr>
+          <tr>
+            <td>Thumbnail</td>
+            <td class="num">400 wide</td>
+            <td>Small previews and list rows</td>
+          </tr>
+          <tr>
+            <td>Half size</td>
+            <td class="num">50%</td>
+            <td>Halves both dimensions of the original</td>
+          </tr>
+          <tr>
+            <td>Quarter size</td>
+            <td class="num">25%</td>
+            <td>Quarters both dimensions of the original</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Questions</h2>
+
+      <h3>Are my images uploaded to a server?</h3>
+      <p>
+        No. Downsize reads the image directly in your browser and does all the work there. The file
+        never leaves your device, and there is no server involved at any point.
+      </p>
+
+      <h3>What file types can I resize?</h3>
+      <p>
+        JPG, PNG and WEBP. The image you download is always the same format as the one you opened,
+        so a PNG stays a PNG.
+      </p>
+
+      <h3>Is there a file size limit?</h3>
+      <p>
+        Files up to 30 MB are accepted. The limit is checked before the image is opened, so a file
+        that is too large is rejected straight away rather than slowing the page down.
+      </p>
+
+      <h3>Will resizing reduce the quality?</h3>
+      <p>
+        Making an image smaller keeps it sharp, because the detail is being condensed rather than
+        invented. Enlarging past the original dimensions is allowed but will look soft, since there
+        is no extra detail to draw on.
+      </p>
+
+      <h3>Does it cost anything?</h3>
+      <p>
+        No. Downsize is free, has no account, and adds no watermark. There is no paid tier to
+        upgrade to.
+      </p>
+
+      <footer>
+        <p>
+          Downsize is a free tool for resizing images in the browser. Nothing you open here is
+          uploaded. © 2026
+        </p>
+      </footer>
+    </main>
   </body>
 </html>

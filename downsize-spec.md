@@ -31,29 +31,21 @@ The defining property — and the thing the marketing copy and the architecture 
 - Download the result with a sensible filename
 - Static SEO content on the same page (see §11)
 
-### Explicitly out of scope for v1
+### Explicitly out of scope
 
-Do not build these. Do not add nav items or dead buttons for them.
+Do not build these. Do not add nav items, tabs, or dead buttons for them.
 
-- Cropping, rotation, filters — deferred indefinitely, no phase currently planned
+- Compression quality controls, target-file-size compression
+- Format conversion (JPG ↔ PNG ↔ WEBP)
+- Cropping, rotation, filters
+- AI assistance, any LLM integration
 - Batch / multi-file processing
 - Accounts, auth, payments, analytics dashboards, pricing pages
-- Any backend, any serverless function, any database (Phase D below is the one deliberate exception)
+- Any backend, any serverless function, any database
 
-Output format MUST match the input format in v1. A JPEG in produces a JPEG out.
+Output format MUST match the input format. A JPEG in produces a JPEG out.
 
-### Phased scope
-
-*(Added 2026-09-23, Phase A build order: compression, format conversion, and AI assistance were previously listed under "explicitly out of scope." They're not v1 features, but they're no longer indefinitely out — they're phased. Phase A builds the shell with a permanent place for all three: the sidebar, the tool tabs, the before/after structure. Nothing beyond Resize has working functionality until its own phase lands.)*
-
-| Phase | Adds | Notes |
-|---|---|---|
-| **Phase A** | Layout only | Sidebar (Image + Presets), tool tabs (Resize active; Compress/Convert real `disabled` buttons, visibly muted, `title="Coming soon"`), before/after comparison structure. Resize is the only working feature. |
-| **Phase B** | Compression + quality slider | Compress tab becomes interactive. |
-| **Phase C** | Format conversion (JPG ↔ PNG ↔ WEBP) | Convert tab becomes interactive. |
-| **Phase D** | AI assistance | Via a Cloudflare Pages Function — the one deliberate exception to "no backend." Everything through Phase C stays 100% client-side. |
-
-The processing layer (§6) MUST be written as pure functions so Phase B/C drop in without touching the UI layer.
+*(Amended 2026-09-23: a phased-scope section adding compress/convert/AI as Phases B–D was briefly added here and has been removed, along with the sidebar and tool-tab shell built for it. This app does one thing: resize images. None of the above are planned features. The processing layer (§6) stays pure-functional for its own sake — testability — not to reserve room for a roadmap.)*
 
 ---
 
@@ -95,6 +87,7 @@ downsize/
 │   ├── robots.txt
 │   ├── sitemap.xml
 │   ├── og-image.png            # 1200×630
+│   ├── apple-touch-icon.png    # 180×180
 │   ├── favicon.svg
 │   └── _headers                # Cloudflare headers (see §12)
 ├── src/
@@ -103,19 +96,17 @@ downsize/
 │   ├── index.css               # Tailwind + design tokens
 │   ├── components/
 │   │   ├── layout/
-│   │   │   └── Header.tsx
+│   │   │   ├── Header.tsx
+│   │   │   └── Logo.tsx             # inline SVG mark, size prop
 │   │   ├── upload/
 │   │   │   ├── Dropzone.tsx
 │   │   │   └── FileError.tsx
-│   │   ├── sidebar/                 # added Phase A — left column, 320px fixed
-│   │   │   ├── Sidebar.tsx          # "1. Image" (Dropzone/FileCard) + "2. Presets"
-│   │   │   ├── FileCard.tsx         # loaded-file summary: thumb, name, size, remove
-│   │   │   └── PresetGrid.tsx       # moved here from workspace/ — it's a sidebar concern
 │   │   ├── workspace/
-│   │   │   ├── Workspace.tsx        # orchestrates preview + tool tabs + comparison
+│   │   │   ├── Workspace.tsx        # orchestrates preview + controls
 │   │   │   ├── ImageCanvas.tsx      # displays preview, ruler ticks, source info bar
-│   │   │   ├── ToolTabs.tsx         # added Phase A — Resize · Compress · Convert
+│   │   │   ├── FileCard.tsx         # loaded-file summary: thumb, name, size, remove
 │   │   │   ├── ResizeControls.tsx
+│   │   │   ├── PresetGrid.tsx
 │   │   │   ├── SizeComparison.tsx   # before → after, side-by-side thumbnails
 │   │   │   └── DownloadBar.tsx
 │   │   └── ui/
