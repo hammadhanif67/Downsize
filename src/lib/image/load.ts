@@ -1,4 +1,5 @@
 import { MAX_SOURCE_PIXELS } from '../constants';
+import { adoptBitmap, releaseImage } from './client';
 import { isSupportedMime, validateFile } from '../validation';
 import type { AppError, SourceImage } from '../../types';
 
@@ -45,11 +46,16 @@ export async function loadImage(file: File): Promise<SourceImage | AppError> {
     return { kind: 'unsupported-type', received: file.type };
   }
 
+  // Decoding stays on this thread; the bitmap is handed to the client,
+  // which transfers it to the worker and acknowledges. Width and height
+  // are read BEFORE that — a transferred bitmap is neutered and reports 0.
+  const adopted = await adoptBitmap(bitmap);
+
   return {
     file,
-    bitmap,
-    width: bitmap.width,
-    height: bitmap.height,
+    imageId: adopted.imageId,
+    width: adopted.width,
+    height: adopted.height,
     bytes: file.size,
     mime: file.type,
     name: stripExtension(file.name),
@@ -62,5 +68,7 @@ export async function loadImage(file: File): Promise<SourceImage | AppError> {
 // a SourceImage does the same two-line release instead of reimplementing it.
 export function releaseSourceImage(source: SourceImage): void {
   URL.revokeObjectURL(source.previewUrl);
-  source.bitmap.close();
+  // Closes the bitmap wherever it lives — in the worker, or in the
+  // client's local map on the fallback path.
+  releaseImage(source.imageId);
 }

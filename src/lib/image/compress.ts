@@ -1,7 +1,22 @@
 import { MAX_QUALITY, MAX_QUALITY_SEARCH_ATTEMPTS, MIN_QUALITY } from '../constants';
 import { isAppError } from '../validation';
 import { encode } from './encode';
+import type { Surface } from './surface';
 import type { AppError, SupportedMime } from '../../types';
+
+// Cancellation is not an error, and it must not be mistakable for one.
+// A `{ kind: 'cancelled' }` object would have passed isAppError and been
+// rendered to the user as a failure.
+export const SEARCH_CANCELLED = { cancelled: true } as const;
+export type SearchCancelled = typeof SEARCH_CANCELLED;
+
+// A predicate, not `=== SEARCH_CANCELLED` at call sites: an object type is
+// not a unit type, so TypeScript does not narrow a union on identity
+// comparison with one. Without this the callers compiled but kept
+// SearchCancelled in the type of every subsequent access.
+export function isSearchCancelled(value: unknown): value is SearchCancelled {
+  return value === SEARCH_CANCELLED;
+}
 
 export interface TargetSearch {
   blob: Blob;
@@ -37,10 +52,15 @@ export interface TargetSearch {
 // optimal quality. It would still never return something over target,
 // because only encodes that actually fit are ever kept.
 export async function encodeToTarget(
-  canvas: HTMLCanvasElement,
+  canvas: Surface,
   mime: SupportedMime,
   targetBytes: number,
-): Promise<TargetSearch | AppError> {
+  // Checked between attempts, never mid-encode. A superseded search should
+  // abandon rather than finish six more encodes nobody is waiting for —
+  // each one is a full encode of a full-size canvas, and on a 24 MP image
+  // that is seconds of work thrown away.
+  shouldContinue: () => boolean = () => true,
+): Promise<TargetSearch | SearchCancelled | AppError> {
   let attempts = 0;
 
   const attempt = async (points: number): Promise<{ blob: Blob; quality: number } | AppError> => {
@@ -59,6 +79,7 @@ export async function encodeToTarget(
   // eight.
   const top = await attempt(hiPoints);
   if (isAppError(top)) return top;
+  if (!shouldContinue()) return SEARCH_CANCELLED;
   if (top.blob.size <= targetBytes) {
     return { blob: top.blob, quality: top.quality, attempts, reachable: true };
   }
@@ -70,6 +91,7 @@ export async function encodeToTarget(
   // and call it a success.
   const bottom = await attempt(loPoints);
   if (isAppError(bottom)) return bottom;
+  if (!shouldContinue()) return SEARCH_CANCELLED;
   if (bottom.blob.size > targetBytes) {
     return { blob: bottom.blob, quality: bottom.quality, attempts, reachable: false };
   }
@@ -85,6 +107,7 @@ export async function encodeToTarget(
     const mid = Math.floor((low + high) / 2);
     const probe = await attempt(mid);
     if (isAppError(probe)) return probe;
+    if (!shouldContinue()) return SEARCH_CANCELLED;
     if (probe.blob.size <= targetBytes) {
       low = mid;
       best = probe;

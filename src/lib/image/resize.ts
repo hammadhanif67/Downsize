@@ -1,7 +1,8 @@
 import { MAX_DOWNSCALE_STEPS } from '../constants';
+import { createSurface, surfaceContext, type Surface } from './surface';
 
 export interface ResizeOutput {
-  canvas: HTMLCanvasElement;
+  canvas: Surface;
   // Number of halving iterations the stepped-downscale loop actually ran.
   // Exposed (rather than just returning the canvas per the spec's literal
   // §6.4 signature) because it's the only externally-observable proof that
@@ -11,13 +12,10 @@ export interface ResizeOutput {
   steps: number;
 }
 
-function makeContext(width: number, height: number): CanvasRenderingContext2D {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  // Context creation only fails in unsupported environments; the spec's own
-  // pseudocode asserts non-null the same way.
-  const ctx = canvas.getContext('2d', { alpha: true })!;
+// The only DOM this module ever used was creating the canvas; that moved
+// to surface.ts so the loop below runs unchanged in a worker.
+function makeContext(width: number, height: number) {
+  const ctx = surfaceContext(createSurface(width, height));
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   return ctx;
@@ -50,5 +48,5 @@ export function resize(bitmap: ImageBitmap, targetWidth: number, targetHeight: n
   const finalCtx = makeContext(targetWidth, targetHeight);
   finalCtx.drawImage(current, 0, 0, targetWidth, targetHeight);
 
-  return { canvas: finalCtx.canvas, steps };
+  return { canvas: finalCtx.canvas as Surface, steps };
 }

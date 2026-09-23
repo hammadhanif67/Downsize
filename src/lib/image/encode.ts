@@ -1,3 +1,4 @@
+import { surfaceToBlob, type Surface } from './surface';
 import type { AppError, SupportedMime } from '../../types';
 
 // `quality` is 0–1, as canvas.toBlob takes it.
@@ -9,21 +10,14 @@ import type { AppError, SupportedMime } from '../../types';
 // remember which formats have a quality and which do not — and it makes
 // "quality 60 on a PNG" impossible to express rather than merely
 // ineffective.
-export function encode(
-  canvas: HTMLCanvasElement,
+export async function encode(
+  canvas: Surface,
   mime: SupportedMime,
   quality?: number,
 ): Promise<Blob | AppError> {
   const effective = mime === 'image/png' ? undefined : quality;
-  return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => {
-        resolve(blob ?? { kind: 'encode-failed' });
-      },
-      mime,
-      effective,
-    );
-  });
+  const blob = await surfaceToBlob(canvas, mime, effective);
+  return blob ?? { kind: 'encode-failed' };
 }
 
 // Whether a format has a quality axis at all. The Compress panel reads

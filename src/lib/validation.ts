@@ -79,6 +79,25 @@ export function resolveTargetSize(
 
 // Shared with useImageFile and useImagePipeline — both need to tell a decoded
 // result apart from the AppError union without an `any`.
+const ERROR_KINDS = new Set<string>([
+  'unsupported-type',
+  'too-large',
+  'decode-failed',
+  'dimensions-too-large',
+  'encode-failed',
+]);
+
 export function isAppError(value: unknown): value is AppError {
-  return typeof value === 'object' && value !== null && 'kind' in value;
+  // Checks the kind against the known set rather than merely testing that
+  // a `kind` property exists. The loose version was one carelessly-shaped
+  // sentinel away from rendering a cancellation to the user as a failure,
+  // and it silently widened every time a non-error object with a `kind`
+  // passed through.
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'kind' in value &&
+    typeof (value as { kind: unknown }).kind === 'string' &&
+    ERROR_KINDS.has((value as { kind: string }).kind)
+  );
 }

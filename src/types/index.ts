@@ -4,7 +4,12 @@ export type SupportedMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
 export interface SourceImage {
   file: File;
-  bitmap: ImageBitmap; // orientation already applied
+  // A handle into lib/image/client, NOT a bitmap. On the worker path the
+  // bitmap has been transferred and this thread's reference is neutered,
+  // so there is nothing to hold; on the fallback path the client holds it
+  // in a local map. Callers address the image by id either way, which is
+  // what makes the two paths interchangeable.
+  imageId: number;
   width: number; // natural width after orientation
   height: number;
   bytes: number;

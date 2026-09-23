@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { encode, supportsQuality } from '../lib/image/encode';
-import { encodeToTarget } from '../lib/image/compress';
-import { resize } from '../lib/image/resize';
+import { supportsQuality } from '../lib/image/encode';
+// Aliased: this hook already exposes a callback named runTargetSearch,
+// and the collision resolved silently in favour of the local const.
+import {
+  beginRequest,
+  isSuperseded,
+  runEncode,
+  runTargetSearch as runSearchJob,
+} from '../lib/image/client';
 import { DEFAULT_QUALITY, RESIZE_DEBOUNCE_MS } from '../lib/constants';
 import { clampPercentage, isAppError, resolveTargetSize } from '../lib/validation';
 import type { Preset } from '../lib/presets';
@@ -129,16 +135,23 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   // later edit finishes first). Whichever result lands, only the one whose
   // id still matches when its encode resolves is allowed to commit.
   //
-  // The target-size search shares this counter rather than keeping its
-  // own. Two counters cannot order each other: a debounced resize that
-  // started before a search and finished after it would still match its
-  // own id and quietly overwrite the search's result. One counter means
-  // whichever request started last is the only one allowed to commit,
-  // whichever path it came from.
-  const requestIdRef = useRef(0);
+  // The counter itself moved into lib/image/client in Phase B.5: it has to
+  // be the thing that talks to the worker, so that a superseded reply is
+  // dropped before it crosses back rather than after. Still ONE counter,
+  // shared by the debounced encode, the target search and the
+  // pass-through commit — two counters cannot order each other.
 
   // The signature of the output currently on screen. See signatureOf.
   const lastSignatureRef = useRef<string | null>(null);
+
+  // Which request owns the "Compressing…" spinner. Without this, a search
+  // superseded by anything that is not another search — typing a width,
+  // moving the slider — returned early and never cleared isSearching, so
+  // the button sat disabled and spinning for the rest of the session.
+  // Confirmed in testing: start a search on a large image, change the
+  // width mid-run, and Compress is dead until reload. The bug predates
+  // the worker; the early return had the same shape in Phase B.
+  const searchOwnerRef = useRef(0);
 
   const latestResultRef = useRef<ResizeResult | null>(null);
   useEffect(() => {
@@ -221,7 +234,10 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
       // Bumped even on the synchronous pass-through path: an encode from
       // an earlier edit may still be in flight, and without this it would
       // land afterwards and replace the source file with its own output.
-      const requestId = ++requestIdRef.current;
+      // Starts a request without running a job: the point is to invalidate
+      // anything in flight. An encode from an earlier edit would otherwise
+      // land afterwards and replace the source file with its own output.
+      const requestId = beginRequest();
 
       if (isPassThrough) {
         lastSignatureRef.current = signature;
@@ -244,14 +260,19 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
 
       setIsProcessing(true);
 
-      const { canvas } = resize(source.bitmap, width, height);
-      const encoded = await encode(canvas, source.mime, effectiveQuality);
+      const encoded = await runEncode(
+        requestId,
+        source.imageId,
+        width,
+        height,
+        source.mime,
+        effectiveQuality,
+      );
 
       // Superseded by a newer request that started while this one was
-      // still encoding — discard rather than showing stale output. The
-      // newer request may be another debounce or a target search; both
-      // bump the same counter.
-      if (requestId !== requestIdRef.current) return;
+      // still encoding. The client already refused to deliver a stale
+      // blob; this is the hook agreeing not to commit anything.
+      if (isSuperseded(encoded)) return;
 
       setIsProcessing(false);
 
@@ -268,11 +289,11 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
       setResult((prev) => {
         if (prev) URL.revokeObjectURL(prev.previewUrl);
         return {
-          blob: encoded,
+          blob: encoded.blob,
           width,
           height,
-          bytes: encoded.size,
-          previewUrl: URL.createObjectURL(encoded),
+          bytes: encoded.blob.size,
+          previewUrl: URL.createObjectURL(encoded.blob),
         };
       });
     }, RESIZE_DEBOUNCE_MS);
@@ -409,17 +430,28 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   const runTargetSearch = useCallback(() => {
     if (!source || !supportsQuality(source.mime)) return;
 
-    const requestId = ++requestIdRef.current;
+    const requestId = beginRequest();
+    searchOwnerRef.current = requestId;
     setIsSearching(true);
 
     void (async () => {
       const { width, height } = resolveTargetSize(settings, source.width, source.height);
-      const { canvas } = resize(source.bitmap, width, height);
       const targetBytes = targetBytesOf(compress);
-      const found = await encodeToTarget(canvas, source.mime, targetBytes);
+      const found = await runSearchJob(
+        requestId,
+        source.imageId,
+        width,
+        height,
+        source.mime,
+        targetBytes,
+      );
 
-      if (requestId !== requestIdRef.current) return;
-      setIsSearching(false);
+      // Clear the spinner whenever THIS search still owns it — including
+      // when it was superseded. A newer search will have claimed
+      // ownership already, so it cannot be cleared out from under one
+      // that is still running.
+      if (searchOwnerRef.current === requestId) setIsSearching(false);
+      if (isSuperseded(found)) return;
 
       if (isAppError(found)) {
         setError(found);

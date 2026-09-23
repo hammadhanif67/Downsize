@@ -379,9 +379,62 @@ and replace the source file with its own output.
 
 ### 6.7 Threading
 
-Run on the main thread in v1. The stepped resize of a 12 MP image takes tens of milliseconds and a Web Worker adds transfer complexity for little gain. Keep `lib/image/*` free of DOM-event and React imports so moving to an `OffscreenCanvas` worker later is a contained change.
+**Rewritten 2026-09-23 (Phase B.5).** The original text said the main thread
+was fine, because "the stepped resize of a 12 MP image takes tens of
+milliseconds". That reasoning was sound *for resize alone* and did not
+survive the target-size search, which is up to eight full encodes of a
+full-size canvas. Measured with a MessageChannel ping-pong probe, against an
+idle baseline of 0 ms median / 9 ms longest:
 
-Show the processing state anyway — on a low-end phone with a 50 MP input it is perceptible.
+| Source | Longest single stall | Total blocked | Share of the search |
+|---|---|---|---|
+| 1600x1200, 1.9 MP | 72 ms | 127 ms | 1% |
+| 4000x3000, 12 MP | **480 ms** | 3,582 ms | 31% |
+| 6000x4000, 24 MP | **1,000 ms** | 6,865 ms | 46% |
+
+A 12 MP phone photo — the commonest large input there is — sat on the 500 ms
+line per stall. So the pipeline moved off the main thread.
+
+**Shape.** `createImageBitmap` on the main thread, transfer the bitmap to the
+worker, `OffscreenCanvas` there, resize and encode and search all off-thread,
+post back a `Blob`.
+
+`resize.ts`, `encode.ts` and `compress.ts` are **not forked**. The only DOM
+they touched was creating a canvas and `toBlob`, both of which moved behind
+`surface.ts`; the worker imports the same modules the fallback does. A second
+copy of the stepped-downscale loop is exactly the kind of thing that drifts
+into a silent quality regression.
+
+**Bitmap ownership: resident in the worker, addressed by id.** Transferring
+neuters the sender's reference, so the main thread cannot keep one. The
+alternative — re-decoding per job — would put a full `createImageBitmap` of a
+24 MP JPEG on every debounced keystroke, which is the cost this change exists
+to remove, reintroduced at a worse cadence. `SourceImage.bitmap` is therefore
+`SourceImage.imageId`.
+
+The **load-before-release** guarantee (6.2) now spans the boundary: the worker
+acknowledges an `adopt` before `adoptBitmap` resolves, and the caller releases
+the previous image only after that. A failed load leaves the previous image
+whole and still usable — 14 checks that it can still be resized, not merely
+that it is still on screen.
+
+**One request counter**, moved from the hook into `client.ts` so a superseded
+reply is dropped before it crosses back. `beginRequest()` also posts a cancel,
+and the search re-reads it **between attempts** — each attempt awaits an
+encode, which yields, which is what lets the message land mid-search.
+Cancellation is a `SEARCH_CANCELLED` sentinel with no `kind` field, because
+`{ kind: 'cancelled' }` would have passed `isAppError` and been rendered to
+the user as a failure.
+
+Errors cross as the `AppError` union — plain objects that structured-clone.
+An `Error` instance does not survive `postMessage` intact.
+
+**Fallback.** `OffscreenCanvas` is the real requirement; detected once at
+module load, never per job. Without it, `client.ts` calls the same three
+functions inline. Same correctness, same bytes, no worker chunk fetched.
+
+Show the processing state regardless — the work still takes seconds, it just
+no longer takes the UI with it.
 
 ### 6.8 Debouncing
 
@@ -805,6 +858,21 @@ Ship only when all of these pass:
 - [ ] Table reveals animate the `<td>`s. A `<tr>` silently ignores both `opacity`
       and `transform`, so arming rows animates nothing and looks correct in a
       screenshot
+
+**Threading**
+- [ ] An 8-attempt search on a 24 MP image keeps the main thread near its idle
+      baseline; type in the width field while it runs and every keystroke lands
+- [ ] Superseding a search stops it early — the replacement lands in roughly
+      one attempt's time, not after the remaining seven
+- [ ] Superseding a search also CLEARS its spinner. A search superseded by
+      anything that is not another search used to leave the Compress button
+      disabled and spinning for the rest of the session
+- [ ] A failed load leaves the previous image usable, not merely visible:
+      resize it afterwards and check the output actually changes
+- [ ] Force the OffscreenCanvas detect false and run this whole list again.
+      `surface instanceof OffscreenCanvas` throws when the global is absent,
+      which broke the fallback in exactly the browsers it exists for — and
+      silently, because it rejected on a path that does not return AppError
 
 **Layout stability**
 - [ ] **`#root` reserves the tool's exact height before React mounts; verify with
