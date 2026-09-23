@@ -134,14 +134,20 @@ Three layers, strictly separated:
 ```
 downsize/
 ├── index.html                  # SEO content lives here (see §11)
-├── public/
-│   ├── robots.txt
-│   ├── sitemap.xml
+├── public/                     # copied verbatim into dist/
 │   ├── og-image.png            # 1200×630, light palette in both themes
 │   ├── apple-touch-icon.png    # 180×180
 │   ├── favicon.ico             # 16 + 32, PNG payloads
-│   ├── favicon.svg             # own 16-unit geometry, see the file
-│   └── _headers                # Cloudflare headers (see §12)
+│   └── favicon.svg             # own 16-unit geometry, see the file
+│
+│   Three files that LOOK like they belong above are generated into dist/
+│   by vite.config.ts instead, and for the same reason in each case —
+│   their contents are not knowable when the file would be written:
+│     robots.txt    carries the site URL, which varies by deployment
+│     sitemap.xml   same
+│     _headers      carries a SHA-256 of the inline theme script (§12)
+│   public/ is copied verbatim, so anything hardcoded there survives into
+│   the build and silently contradicts the canonical.
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx
@@ -1020,7 +1026,7 @@ Work in this sequence and keep the app runnable at the end of each step.
    §11.3.6 is coherent: it's static HTML written in step 8, and React never
    touches that markup per §11.1. A React `Footer.tsx` had no job left.)
 8. Write the static SEO content, head tags, JSON-LD, `robots.txt`, `sitemap.xml`, `og-image.png`.
-9. Add `_headers`, deploy to Cloudflare Pages.
+9. Generate `_headers` from the build (§12), deploy to Cloudflare Pages.
 10. Run the §14 checklist. Fix. Ship.
 
 ---
