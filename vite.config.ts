@@ -21,6 +21,18 @@ function siteFiles(siteUrl: string): Plugin {
 
   return {
     name: 'downsize-site-files',
+
+    // Do the %VITE_SITE_URL% substitution here rather than relying on
+    // Vite's built-in HTML env replacement. That built-in only substitutes
+    // variables present in the LOADED env, which means it works locally
+    // (where .env supplies it) and silently no-ops on a CI build where
+    // .env is gitignored — shipping the literal "%VITE_SITE_URL%/" as the
+    // canonical. Resolving it through the same siteUrl the sitemap uses
+    // keeps the two from ever disagreeing.
+    transformIndexHtml(html) {
+      return html.replaceAll('%VITE_SITE_URL%', siteUrl)
+    },
+
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = req.url?.split('?')[0]
