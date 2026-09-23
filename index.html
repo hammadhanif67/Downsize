@@ -26,6 +26,11 @@
     -->
     <script>
       (function () {
+        // Marks that scripting is on, which is what gates the #root space
+        // reservation in index.css. Without the class, a visitor with JS
+        // disabled gets no reserved gap where a tool they cannot run
+        // would have been.
+        document.documentElement.classList.add('js');
         try {
           var choice = localStorage.getItem('downsize-theme');
           if (choice === 'light' || choice === 'dark') {

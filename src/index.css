@@ -133,6 +133,30 @@
   }
 }
 
+/* Reserve the height React is about to fill.
+   ---------------------------------------------------------------------
+   #root ships empty and <main> follows it, so the article paints at the
+   top of the document and is then shoved down by however tall the tool
+   renders. On a phone that is a 457px jump: Lighthouse measured CLS
+   0.558, with <main> named as the only shifting element. It scores 0
+   whenever the bundle happens to mount before first paint, which is why
+   it survived earlier runs — it is a race, not a constant.
+
+   The number is the empty state, which is fixed: 65px of navbar (64 +
+   its rule), the section's 40px top and bottom padding, and the
+   dropzone's pinned 320px. env() covers a notch, where the navbar's
+   safe-area padding makes it taller than 65.
+
+   Gated on .js, set by the inline script in index.html: with scripting
+   off there is no tool to make room for, and an unexplained 465px of
+   white space would be worse than the shift it prevents.
+
+   If the dropzone's min-height or the section padding changes, this
+   changes with it. §14 checks it. */
+.js #root {
+  min-height: calc(465px + env(safe-area-inset-top, 0px));
+}
+
 /* The static article in index.html (§11). Element-scoped CSS rather than
    utility classes: React never renders this markup, so there is no
    component to hang classes off, and a reading region with a dozen element

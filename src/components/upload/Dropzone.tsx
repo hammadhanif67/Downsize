@@ -94,7 +94,12 @@ function Dropzone({ onFileSelected, isLoading }: DropzoneProps) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex flex-col items-center gap-3 px-6 py-16 text-center ${
+      // min-h pins the box to one height at every width. Left to its
+      // content it is 312px on a phone and 289px from 640px up, because
+      // the subline wraps to two lines below that — and index.css has to
+      // reserve this height exactly (see the #root rule there), so one
+      // number is worth more than 8px of tightness. Content stays centred.
+      className={`flex min-h-[320px] flex-col items-center justify-center gap-3 px-6 py-16 text-center ${
         isDragActive
           ? 'border-2 border-solid border-accent bg-accent/[0.06]'
           : 'border border-dashed border-rule bg-surface hover:border-solid hover:border-accent hover:bg-paper'

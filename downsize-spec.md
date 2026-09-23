@@ -680,6 +680,16 @@ Ship only when all of these pass:
       and `transform`, so arming rows animates nothing and looks correct in a
       screenshot
 
+**Layout stability**
+- [ ] `#root`'s reserved min-height equals the rendered empty-state height
+      exactly, at 320/360/390/414/640/768/1024/1440. It ships empty with `<main>`
+      after it, so any mismatch shoves the whole article down when the bundle
+      mounts — measured at CLS 0.558 before it was reserved, and it scores 0
+      whenever the bundle happens to win the race, so one clean run proves
+      nothing. Run Lighthouse more than once.
+- [ ] With scripting off the reservation is absent (it is gated on the `.js`
+      class), so there is no unexplained gap where the tool would be
+
 **Content**
 - [ ] Every FAQ answer appears in the FAQPage JSON-LD, matching the on-page text
 - [ ] The preset table's DIMENSIONS match `lib/presets.ts` (the names deliberately
