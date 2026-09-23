@@ -29,13 +29,13 @@ The defining property — and the thing the marketing copy and the architecture 
 - Aspect-ratio lock (on by default)
 - Before/after comparison of dimensions and file size
 - Download the result with a sensible filename
+- **Compression: a quality control, and target-file-size search (§6.9)**
 - Static SEO content on the same page (see §11)
 
 ### Explicitly out of scope
 
 Do not build these. Do not add nav items, tabs, or dead buttons for them.
 
-- Compression quality controls, target-file-size compression
 - Format conversion (JPG ↔ PNG ↔ WEBP)
 - Cropping, rotation, filters
 - AI assistance, any LLM integration
@@ -45,7 +45,23 @@ Do not build these. Do not add nav items, tabs, or dead buttons for them.
 
 Output format MUST match the input format. A JPEG in produces a JPEG out.
 
-*(Amended 2026-09-23: a phased-scope section adding compress/convert/AI as Phases B–D was briefly added here and has been removed, along with the sidebar and tool-tab shell built for it. This app does one thing: resize images. None of the above are planned features. The processing layer (§6) stays pure-functional for its own sake — testability — not to reserve room for a roadmap.)*
+*(Amended 2026-09-23: a phased-scope section adding compress/convert/AI as Phases B–D was briefly added here and has been removed, along with the sidebar and tool-tab shell built for it. The processing layer (§6) stays pure-functional for its own sake — testability — not to reserve room for a roadmap.)*
+
+**Amended 2026-09-23 — Phase B.** Compression and quality control move into
+scope. They are what make "get this under 500 KB" answerable at all, which
+resizing alone cannot do.
+
+Two tool tabs, Resize and Compress, and both work. There is no Convert tab and
+no AI Assist tab, **not even disabled** — the reverted shell above is the
+reason that rule exists, and it still holds. Format conversion and AI
+assistance remain out of scope until they are built, not before.
+
+One output, not two. Resize and compress apply to the same result in that
+order — resize, then encode at the chosen quality — and there is one result
+object and one download. Switching tabs changes which settings are on screen
+and nothing else.
+
+Output format still MUST match the input format.
 
 ---
 
@@ -107,7 +123,9 @@ downsize/
 │   │   │   ├── Workspace.tsx        # orchestrates preview + controls
 │   │   │   ├── ImageCanvas.tsx      # displays preview, ruler ticks, source info bar
 │   │   │   ├── FileCard.tsx         # loaded-file summary: thumb, name, size, remove
+│   │   │   ├── ToolTabs.tsx          # Resize · Compress, real tablist
 │   │   │   ├── ResizeControls.tsx
+│   │   │   ├── CompressControls.tsx  # quality slider / target-size search
 │   │   │   ├── PresetGrid.tsx
 │   │   │   ├── SizeComparison.tsx   # before → after, side-by-side thumbnails
 │   │   │   └── DownloadBar.tsx
@@ -119,7 +137,7 @@ downsize/
 │   │       └── Spinner.tsx
 │   ├── hooks/
 │   │   ├── useImageFile.ts     # load, validate, hold source image
-│   │   ├── useResize.ts        # settings state + run processing
+│   │   ├── useResize.ts        # resize AND compress settings, one result
 │   │   └── useTheme.ts         # theme choice, storage, theme-color meta
 │   ├── site/                   # operates on index.html's static article,
 │   │   ├── reveal.ts           #   which React does not own — not React
@@ -129,6 +147,7 @@ downsize/
 │   │   │   ├── load.ts
 │   │   │   ├── resize.ts
 │   │   │   ├── encode.ts
+│   │   │   ├── compress.ts     # target-size binary search (§6.9)
 │   │   │   └── download.ts
 │   │   ├── validation.ts
 │   │   ├── presets.ts
@@ -286,6 +305,53 @@ Filename pattern: `{originalName}-{width}x{height}.{ext}` → `beach-photo-1280x
 Sanitise the original name: strip path separators and control characters, collapse whitespace to `-`, cap at 60 characters.
 
 Create an object URL, trigger an `<a download>` click, then revoke the URL on the next tick.
+
+### 6.9 Target-size search (`lib/image/compress.ts`)
+
+Added 2026-09-23 with Phase B. Numbered 6.9 so the existing subsections keep
+the numbers they are referred to by elsewhere.
+
+```ts
+encodeToTarget(canvas, mime, targetBytes)
+  : Promise<{ blob; quality; attempts; reachable } | AppError>
+```
+
+Binary search for the **highest** quality whose encode lands at or under
+`targetBytes`, capped at `MAX_QUALITY_SEARCH_ATTEMPTS` (8). Rules:
+
+- It walks whole percentage points between `MIN_QUALITY` and `MAX_QUALITY`,
+  not the continuous range. Bisecting a float converges on something like
+  0.6414062, and reporting "quality 64" after encoding at that is a small
+  lie — re-encode at 0.64 and the size moves. On an integer grid the number
+  shown and the number encoded are the same number, and §14 checks that
+  re-encoding at the reported quality reproduces the byte count exactly.
+- It probes the **top first** (a modest target often fits at full quality,
+  and that should cost one encode, not eight) and the **bottom second**,
+  before searching. Probing the bottom early is what guarantees a known-good
+  blob exists for the rest of the run — every later probe either fits and
+  becomes the new best, or is discarded. The function can therefore never be
+  in a position where it has to return an overshooting blob.
+- If even `MIN_QUALITY` overshoots it returns that blob with
+  `reachable: false`. **Never return something over target and present it as
+  success.**
+- It returns `AppError` rather than throwing, like everything else in `lib/`
+  (§6.3). The Phase B brief's signature had no failure arm; `encode()` can
+  genuinely fail, and throwing out of `lib/` is ruled out.
+
+Assumes size decreases monotonically with quality. True for JPEG and WEBP in
+practice, guaranteed by nothing. A non-monotonic encoder would make the
+search land on a valid-but-not-optimal quality; it would still never
+overshoot, because only encodes that actually fit are kept.
+
+**PNG has no quality axis.** `encode()` drops the quality argument for
+`image/png` at source, so "quality 60 on a PNG" is not expressible rather
+than merely ineffective, and target-size mode is disabled for PNG sources
+with the note *"PNG has no quality setting. Reduce the dimensions instead."*
+Do not fake it by downscaling behind the user's back.
+
+**Never debounced.** A search is up to eight full encodes of a full-size
+canvas. It runs on an explicit button press only, and §14 checks that by
+counting `toBlob` calls, not by watching the UI.
 
 ### 6.7 Threading
 
@@ -648,6 +714,23 @@ Ship only when all of these pass:
 - [ ] Downloaded filename follows `name-WxH.ext`
 - [ ] Loading a second image releases the first (check memory in DevTools)
 
+**Compression**
+- [ ] A 3 MB JPEG targeting 500 KB lands at or under 500 KB in ≤8 attempts
+- [ ] Re-encoding the same canvas at the reported quality reproduces the byte
+      count exactly, and the next point up overshoots (so it really was the
+      highest quality that fits, not merely one that fits)
+- [ ] An unreachable target returns `reachable: false` and the UI says so in
+      plain words, naming both numbers
+- [ ] A PNG shows the note, offers no quality control at all, and survives
+      tab switching
+- [ ] Resize and compress compose: one output reflecting both, one result
+      object, one download. Switching tabs discards neither tab's settings
+- [ ] Typing in the target field starts no search — verified by counting
+      `HTMLCanvasElement.prototype.toBlob` calls, not by watching the UI
+- [ ] The debounced path and the button path share ONE request-id counter.
+      Two counters cannot order each other, and a slow debounced resize
+      landing after a search would silently overwrite it
+
 **Validation**
 - [ ] A `.pdf` renamed to `.jpg` is rejected with `decode-failed`
 - [ ] A 40 MB file is rejected before decoding
@@ -659,6 +742,9 @@ Ship only when all of these pass:
 **Interface**
 - [ ] Full keyboard path: focus dropzone → open picker → edit width → download
 - [ ] Layout holds at 320px width with no horizontal scroll
+- [ ] axe is clean WITH A FILE LOADED, not just on the empty state. FileCard
+      only exists once an image is open, and a nested-interactive violation
+      hid in it through six phases of empty-state-only scans
 - [ ] Rapid slider dragging never freezes the UI
 - [ ] Reduced-motion preference removes the cross-fade
 

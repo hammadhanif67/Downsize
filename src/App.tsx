@@ -15,8 +15,12 @@ function App() {
   const { source, error: fileError, isLoading, load, clear } = useImageFile();
   const {
     settings,
+    compress,
     result,
+    compressOutcome,
+    canCompress,
     isProcessing,
+    isSearching,
     error: resizeError,
     setWidth,
     setHeight,
@@ -25,6 +29,12 @@ function App() {
     toggleLock,
     reset,
     applyPreset,
+    setQuality,
+    setCompressMode,
+    setTargetValue,
+    setTargetUnit,
+    resetCompress,
+    runTargetSearch,
   } = useResize(source);
 
   // `relative` is what the navbar's scroll sentinel is positioned against
@@ -53,8 +63,12 @@ function App() {
           <Workspace
             source={source}
             settings={settings}
+            compress={compress}
             result={result}
+            compressOutcome={compressOutcome}
+            canCompress={canCompress}
             isProcessing={isProcessing}
+            isSearching={isSearching}
             isLoading={isLoading}
             fileError={fileError}
             resizeError={resizeError}
@@ -67,6 +81,12 @@ function App() {
             toggleLock={toggleLock}
             reset={reset}
             applyPreset={applyPreset}
+            setQuality={setQuality}
+            setCompressMode={setCompressMode}
+            setTargetValue={setTargetValue}
+            setTargetUnit={setTargetUnit}
+            resetCompress={resetCompress}
+            runTargetSearch={runTargetSearch}
           />
         )}
       </section>

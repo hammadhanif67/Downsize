@@ -15,6 +15,32 @@ export interface SourceImage {
 
 export type ResizeMode = 'dimensions' | 'percentage';
 
+export type CompressMode = 'quality' | 'target';
+
+export type SizeUnit = 'KB' | 'MB';
+
+export interface CompressSettings {
+  mode: CompressMode;
+  // 0–1, as canvas.toBlob wants it. There is exactly ONE quality in the
+  // app: "Target size" is not a second setting, it is a second way of
+  // choosing this one. A search writes its answer back here, which is why
+  // switching modes never loses anything.
+  quality: number;
+  targetValue: number;
+  targetUnit: SizeUnit;
+}
+
+// What a target-size search cost and whether it succeeded. Separate from
+// CompressSettings because it describes a past run, not a setting: it is
+// cleared the moment the output stops being the thing that search produced.
+export interface CompressOutcome {
+  quality: number;
+  attempts: number;
+  reachable: boolean;
+  targetBytes: number;
+  bytes: number;
+}
+
 export interface ResizeSettings {
   mode: ResizeMode;
   width: number;
