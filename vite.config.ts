@@ -10,6 +10,13 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 // survive into the build and contradict the canonical. They're generated
 // here instead, from the same VITE_SITE_URL the HTML uses, and served in
 // dev by the same plugin so the two environments can't drift.
+// Deliberately not the %VITE_NAME% form. Vite's core HTML env replacement
+// claims that syntax, so it tried to resolve this marker itself and warned
+// once per occurrence - five warnings on every single build. A build that
+// warns on every deploy trains you to stop reading the log, and the one
+// time it matters the warning is already noise.
+const SITE_URL_MARKER = '__DOWNSIZE_SITE_URL__'
+
 function siteFiles(siteUrl: string, indexable: boolean): Plugin {
   const robots = indexable
     ? ['User-agent: *', 'Allow: /', `Sitemap: ${siteUrl}/sitemap.xml`, ''].join('\n')
@@ -40,7 +47,7 @@ function siteFiles(siteUrl: string, indexable: boolean): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
-        let out = html.replaceAll('%VITE_SITE_URL%', siteUrl)
+        let out = html.replaceAll(SITE_URL_MARKER, siteUrl)
 
         // A preview build must not be indexable. robots.txt alone is not
         // enough — a preview URL that is linked from anywhere can still be
@@ -80,6 +87,24 @@ function siteFiles(siteUrl: string, indexable: boolean): Plugin {
           out = out.replace(
             '</head>',
             `  <link rel="preload" href="/${font}" as="font" type="font/woff2" crossorigin />\n  </head>`,
+          )
+        }
+
+        // Build-time assertions, not a hope.
+        //
+        // A literal marker in the canonical shipped to production once
+        // already, and it was invisible locally because .env supplied the
+        // value here and not on CI. Throwing fails the Cloudflare build
+        // outright — the only feedback that cannot be scrolled past.
+        if (out.includes(SITE_URL_MARKER)) {
+          throw new Error(
+            `[downsize] ${SITE_URL_MARKER} survived substitution in index.html. ` +
+              'The canonical would have shipped as a literal token.',
+          )
+        }
+        if (!/<link rel="canonical" href="https:\/\/[^"]+\/"/.test(out)) {
+          throw new Error(
+            '[downsize] index.html has no absolute https canonical after substitution.',
           )
         }
         return out

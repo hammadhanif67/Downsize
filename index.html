@@ -51,9 +51,17 @@
     />
     <meta name="robots" content="index,follow" />
     <meta name="author" content="Hammad Minhas" />
-    <!-- %VITE_SITE_URL% is substituted at build time from the one value in
-         vite.config.ts's resolveSiteUrl(). Never hardcode a domain here. -->
-    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <!-- The four URLs below are substituted at build time from the single
+         value in vite.config.ts's resolveSite(). Never hardcode a domain
+         here.
+
+         The marker is deliberately NOT of the form Vite's own HTML env
+         replacement recognises. That syntax made Vite's core try to
+         resolve it first, fail, and warn once per occurrence on every
+         build — five warnings a deploy, which is how a log stops being
+         read. The plugin owns this substitution outright; core should not
+         be involved at all. -->
+    <link rel="canonical" href="__DOWNSIZE_SITE_URL__/" />
 
     <!-- The media-scoped pair is the correct answer for "system", and the
          only answer with JS off. An explicit light/dark choice is handled
@@ -64,13 +72,13 @@
     <meta name="theme-color" content="#0B0D10" media="(prefers-color-scheme: dark)" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:url" content="__DOWNSIZE_SITE_URL__/" />
     <meta property="og:title" content="Downsize — Resize images in your browser" />
     <meta
       property="og:description"
       content="Resize JPG, PNG and WEBP without uploading. Everything happens on your device."
     />
-    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image" content="__DOWNSIZE_SITE_URL__/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
 
     <!-- .ico first and with sizes="any": browsers and crawlers hit
@@ -86,7 +94,7 @@
         "@context": "https://schema.org",
         "@type": "WebApplication",
         "name": "Downsize",
-        "url": "%VITE_SITE_URL%/",
+        "url": "__DOWNSIZE_SITE_URL__/",
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Any browser",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
