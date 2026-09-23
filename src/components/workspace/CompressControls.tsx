@@ -6,6 +6,8 @@ import type { CompressMode, CompressOutcome, CompressSettings, ResizeResult, Siz
 
 interface CompressControlsProps {
   compress: CompressSettings;
+  outputLabel: string;
+  convertingTo: boolean;
   result: ResizeResult | null;
   outcome: CompressOutcome | null;
   canCompress: boolean;
@@ -47,6 +49,8 @@ function outcomeLine(outcome: CompressOutcome): string {
 
 function CompressControls({
   compress,
+  outputLabel,
+  convertingTo,
   result,
   outcome,
   canCompress,
@@ -61,17 +65,22 @@ function CompressControls({
   const isTarget = compress.mode === 'target';
   const points = Math.round(compress.quality * 100);
 
-  // PNG. Not a disabled slider with a tooltip — the whole mode is off and
-  // the reason is stated, because the honest answer is that the format has
-  // no quality axis, and the useful next step is a different control
-  // entirely. Faking it by quietly downscaling would "work" and would be
-  // a lie about what the user asked for.
+  // PNG — whether that is the source format or one the Convert tab chose.
+  // Not a disabled slider with a tooltip: the whole mode is off and the
+  // reason is stated, because the honest answer is that the format has no
+  // quality axis, and the useful next step is a different control. Faking
+  // it by quietly downscaling would "work" and would be a lie about what
+  // the user asked for.
   if (!canCompress) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="text-body text-ink">PNG has no quality setting. Reduce the dimensions instead.</p>
+        <p className="text-body text-ink">
+          {outputLabel} has no quality setting. Reduce the dimensions instead.
+        </p>
         <p className="text-body text-ink-muted">
-          PNG stores every pixel exactly. The only way to make one smaller is to make it smaller.
+          {outputLabel} stores every pixel exactly. The only way to make one smaller is to make it
+          smaller.
+          {convertingTo && ' The Convert tab is what put the output in this format.'}
         </p>
       </div>
     );

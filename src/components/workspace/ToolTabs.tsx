@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-export type Tool = 'resize' | 'compress';
+export type Tool = 'resize' | 'compress' | 'convert';
 
 interface ToolTabsProps {
   active: Tool;
@@ -10,6 +10,7 @@ interface ToolTabsProps {
 const TABS: Array<{ id: Tool; label: string }> = [
   { id: 'resize', label: 'Resize' },
   { id: 'compress', label: 'Compress' },
+  { id: 'convert', label: 'Convert' },
 ];
 
 export function tabId(tool: Tool): string {
@@ -31,9 +32,11 @@ export function panelId(tool: Tool): string {
 // per the APG's guidance for panels that are cheap to show: both panels
 // are already-rendered settings, so there is nothing to wait for.
 //
-// Only two tabs, and both do something. No Convert, no AI Assist, not even
-// disabled — a greyed-out tab for work that does not exist is a promise
-// the UI has no business making.
+// Three tabs, and all three do something. Convert arrived in Phase C as
+// working code; it was kept out in Phase B precisely because a
+// greyed-out tab for work that does not exist is a promise the UI has
+// no business making. There is still no AI Assist tab, for the same
+// reason, until there is something behind it.
 function ToolTabs({ active, onChange }: ToolTabsProps) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -57,7 +60,7 @@ function ToolTabs({ active, onChange }: ToolTabsProps) {
     // grid needs no rule of its own. --rule, not --rule-strong: the label
     // is the affordance here, and losing the line would cost tidiness,
     // not the ability to operate anything.
-    <div role="tablist" aria-label="Tool" className="grid grid-cols-2">
+    <div role="tablist" aria-label="Tool" className="grid grid-cols-3">
       {TABS.map((tab, index) => {
         const isActive = active === tab.id;
         return (

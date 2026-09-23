@@ -1,7 +1,7 @@
 import { encodeToTarget, isSearchCancelled } from './compress';
 import { encode } from './encode';
 import { resize } from './resize';
-import { HAS_OFFSCREEN_CANVAS } from './surface';
+import { createSurface, surfaceContext, HAS_OFFSCREEN_CANVAS } from './surface';
 import { isAppError } from '../validation';
 import type { AppError, SupportedMime } from '../../types';
 import type { WorkerRequest, WorkerResponse } from './worker';
@@ -128,6 +128,7 @@ export function adoptBitmap(bitmap: ImageBitmap): Promise<AdoptedImage> {
 }
 
 export function releaseImage(imageId: number): void {
+  alphaByImage.delete(imageId);
   if (worker) {
     worker.postMessage({ type: 'release', imageId } satisfies WorkerRequest);
     return;
@@ -150,6 +151,7 @@ export async function runEncode(
   height: number,
   mime: SupportedMime,
   quality: number | undefined,
+  background: string | undefined,
 ): Promise<EncodeResult | Superseded | AppError> {
   if (worker) {
     const reply = await new Promise<WorkerResponse>((resolve) => {
@@ -162,6 +164,7 @@ export async function runEncode(
         height,
         mime,
         quality,
+        background,
       } satisfies WorkerRequest);
     });
     if (!isCurrent(requestId) || reply.type === 'cancelled') return SUPERSEDED;
@@ -174,7 +177,7 @@ export async function runEncode(
   // implementation — the identical imports the worker uses.
   const bitmap = localBitmaps.get(imageId);
   if (!bitmap) return SUPERSEDED;
-  const { canvas } = resize(bitmap, width, height);
+  const { canvas } = resize(bitmap, width, height, background);
   const blob = await encode(canvas, mime, quality);
   if (isAppError(blob)) return blob;
   if (!isCurrent(requestId)) return SUPERSEDED;
@@ -188,6 +191,7 @@ export async function runTargetSearch(
   height: number,
   mime: SupportedMime,
   targetBytes: number,
+  background: string | undefined,
 ): Promise<SearchResult | Superseded | AppError> {
   if (worker) {
     const reply = await new Promise<WorkerResponse>((resolve) => {
@@ -200,6 +204,7 @@ export async function runTargetSearch(
         height,
         mime,
         targetBytes,
+        background,
       } satisfies WorkerRequest);
     });
     if (!isCurrent(requestId) || reply.type === 'cancelled') return SUPERSEDED;
@@ -217,7 +222,7 @@ export async function runTargetSearch(
 
   const bitmap = localBitmaps.get(imageId);
   if (!bitmap) return SUPERSEDED;
-  const { canvas } = resize(bitmap, width, height);
+  const { canvas } = resize(bitmap, width, height, background);
   // Cancellation works on this path too — it just cannot help with the
   // blocking, since the encodes are on the same thread as the UI.
   const found = await encodeToTarget(canvas, mime, targetBytes, () => isCurrent(requestId));
@@ -232,6 +237,59 @@ export async function runTargetSearch(
     attempts: found.attempts,
     reachable: found.reachable,
   };
+}
+
+// Whether the image has any transparent pixel.
+//
+// Cached per imageId: it cannot change for a given file, and the answer is
+// asked for again every time the user toggles between JPG and the other
+// formats. Runs on its own request id so it can never supersede a resize
+// or be superseded by one — it is a question about the source, not a job
+// that produces output.
+const alphaByImage = new Map<number, Promise<boolean>>();
+
+export function imageHasAlpha(imageId: number): Promise<boolean> {
+  const known = alphaByImage.get(imageId);
+  if (known) return known;
+
+  const answer = (async (): Promise<boolean> => {
+    if (worker) {
+      const requestId = ++nextRequestId;
+      const reply = await new Promise<WorkerResponse>((resolve) => {
+        pending.set(requestId, resolve);
+        worker.postMessage({ type: 'alpha', requestId, imageId } satisfies WorkerRequest);
+      });
+      return reply.type === 'alpha-result' ? reply.hasAlpha : false;
+    }
+    const bitmap = localBitmaps.get(imageId);
+    if (!bitmap) return false;
+    return scanForAlphaLocally(bitmap);
+  })();
+
+  alphaByImage.set(imageId, answer);
+  return answer;
+}
+
+// Same strip-wise early-exit scan as the worker's. Duplicated rather than
+// shared only because the worker's copy is the one that matters; this runs
+// exclusively on the no-OffscreenCanvas fallback, where it is already the
+// slow path by definition.
+const ALPHA_STRIP_ROWS = 256;
+
+function scanForAlphaLocally(bitmap: ImageBitmap): boolean {
+  const width = bitmap.width;
+  const surface = createSurface(width, Math.min(ALPHA_STRIP_ROWS, bitmap.height));
+  const ctx = surfaceContext(surface);
+  for (let top = 0; top < bitmap.height; top += ALPHA_STRIP_ROWS) {
+    const rows = Math.min(ALPHA_STRIP_ROWS, bitmap.height - top);
+    ctx.clearRect(0, 0, width, ALPHA_STRIP_ROWS);
+    ctx.drawImage(bitmap, 0, top, width, rows, 0, 0, width, rows);
+    const data = ctx.getImageData(0, 0, width, rows).data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] !== 255) return true;
+    }
+  }
+  return false;
 }
 
 export function isSuperseded(value: unknown): value is Superseded {

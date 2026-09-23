@@ -35,6 +35,18 @@ export interface CompressSettings {
   targetUnit: SizeUnit;
 }
 
+export interface ConvertSettings {
+  // null means "keep the original format". Not the source mime repeated —
+  // the distinction matters for pass-through, which has to know that no
+  // conversion was asked for rather than that one was asked for and
+  // happens to match.
+  format: SupportedMime | null;
+  // Fill for transparent areas when converting to JPEG, which has no
+  // alpha channel. White is right for a logo on a white page and wrong
+  // for one on a coloured page, and only the user knows which.
+  matte: string;
+}
+
 // What a target-size search cost and whether it succeeded. Separate from
 // CompressSettings because it describes a past run, not a setting: it is
 // cleared the moment the output stops being the thing that search produced.

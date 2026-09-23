@@ -2,6 +2,7 @@
 import { encodeToTarget, isSearchCancelled } from './compress';
 import { encode } from './encode';
 import { resize } from './resize';
+import { createSurface, surfaceContext } from './surface';
 import { isAppError } from '../validation';
 import type { AppError, SupportedMime } from '../../types';
 
@@ -41,6 +42,9 @@ export interface EncodeRequest {
   height: number;
   mime: SupportedMime;
   quality: number | undefined;
+  // Fill for transparent areas. Only set when the output is JPEG and the
+  // source actually has alpha to lose.
+  background: string | undefined;
 }
 
 export interface TargetRequest {
@@ -51,6 +55,18 @@ export interface TargetRequest {
   height: number;
   mime: SupportedMime;
   targetBytes: number;
+  background: string | undefined;
+}
+
+// Does this image actually have any transparent pixel?
+//
+// Asked lazily — only when the Convert tab is open and JPEG is selected,
+// and only for a source format that can carry alpha. Most sessions never
+// convert and never pay for this at all.
+export interface AlphaRequest {
+  type: 'alpha';
+  requestId: number;
+  imageId: number;
 }
 
 // Sent when the client starts a newer request. Anything older abandons.
@@ -64,6 +80,7 @@ export type WorkerRequest =
   | ReleaseRequest
   | EncodeRequest
   | TargetRequest
+  | AlphaRequest
   | CancelRequest;
 
 export type WorkerResponse =
@@ -79,6 +96,7 @@ export type WorkerResponse =
       attempts: number;
       reachable: boolean;
     }
+  | { type: 'alpha-result'; requestId: number; hasAlpha: boolean }
   | { type: 'cancelled'; requestId: number }
   | { type: 'failed'; requestId: number; error: AppError };
 
@@ -104,6 +122,30 @@ function post(message: WorkerResponse) {
 
 function isLive(requestId: number): boolean {
   return requestId >= cancelBelow;
+}
+
+// Read in horizontal strips rather than one getImageData of the whole
+// image: a 24 MP bitmap is ~96 MB of RGBA, and an image with transparency
+// almost always reveals it in the first strip. A fully opaque image is the
+// only one that pays the whole cost, and it is also the cheapest case —
+// nothing to allocate beyond one strip at a time.
+const ALPHA_STRIP_ROWS = 256;
+
+function scanForAlpha(bitmap: ImageBitmap): boolean {
+  const width = bitmap.width;
+  const surface = createSurface(width, Math.min(ALPHA_STRIP_ROWS, bitmap.height));
+  const ctx = surfaceContext(surface);
+
+  for (let top = 0; top < bitmap.height; top += ALPHA_STRIP_ROWS) {
+    const rows = Math.min(ALPHA_STRIP_ROWS, bitmap.height - top);
+    ctx.clearRect(0, 0, width, ALPHA_STRIP_ROWS);
+    ctx.drawImage(bitmap, 0, top, width, rows, 0, 0, width, rows);
+    const data = ctx.getImageData(0, 0, width, rows).data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] !== 255) return true;
+    }
+  }
+  return false;
 }
 
 scope.onmessage = async (event: MessageEvent<WorkerRequest>) => {
@@ -142,7 +184,12 @@ scope.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     return;
   }
 
-  const { canvas } = resize(bitmap, message.width, message.height);
+  if (message.type === 'alpha') {
+    post({ type: 'alpha-result', requestId: message.requestId, hasAlpha: scanForAlpha(bitmap) });
+    return;
+  }
+
+  const { canvas } = resize(bitmap, message.width, message.height, message.background);
 
   if (message.type === 'encode') {
     const blob = await encode(canvas, message.mime, message.quality);

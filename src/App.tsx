@@ -16,9 +16,13 @@ function App() {
   const {
     settings,
     compress,
+    convert,
     result,
     compressOutcome,
     canCompress,
+    outputMime,
+    encodable,
+    sourceHasAlpha,
     isProcessing,
     isSearching,
     error: resizeError,
@@ -34,6 +38,8 @@ function App() {
     setTargetValue,
     setTargetUnit,
     resetCompress,
+    setFormat,
+    setMatte,
     runTargetSearch,
   } = useImagePipeline(source);
 
@@ -64,9 +70,13 @@ function App() {
             source={source}
             settings={settings}
             compress={compress}
+            convert={convert}
             result={result}
             compressOutcome={compressOutcome}
             canCompress={canCompress}
+            outputMime={outputMime}
+            encodable={encodable}
+            sourceHasAlpha={sourceHasAlpha}
             isProcessing={isProcessing}
             isSearching={isSearching}
             isLoading={isLoading}
@@ -86,6 +96,8 @@ function App() {
             setTargetValue={setTargetValue}
             setTargetUnit={setTargetUnit}
             resetCompress={resetCompress}
+            setFormat={setFormat}
+            setMatte={setMatte}
             runTargetSearch={runTargetSearch}
           />
         )}

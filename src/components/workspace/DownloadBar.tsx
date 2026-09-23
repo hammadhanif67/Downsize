@@ -2,13 +2,16 @@ import { Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { buildFilename, triggerDownload } from '../../lib/image/download';
 import Button from '../ui/Button';
-import type { ResizeResult, SourceImage } from '../../types';
+import type { ResizeResult, SourceImage, SupportedMime } from '../../types';
 
 const CONFIRMATION_MS = 2000;
 
 interface DownloadBarProps {
   source: SourceImage;
   result: ResizeResult | null;
+  // The format actually produced, which is the source's unless the
+  // Convert tab changed it. The extension has to follow the bytes.
+  outputMime: SupportedMime;
 }
 
 // Live whenever a result exists — no separate "apply" step (spec §8). While
@@ -19,7 +22,7 @@ interface DownloadBarProps {
 // something to build around) — the confirmation that copy §9.4 calls
 // "Image downloaded" happens on the button itself instead: the label swaps
 // to "Downloaded" with a check icon for 2s, then reverts.
-function DownloadBar({ source, result }: DownloadBarProps) {
+function DownloadBar({ source, result, outputMime }: DownloadBarProps) {
   const [justDownloaded, setJustDownloaded] = useState(false);
   const timeoutRef = useRef<number | undefined>(undefined);
 
@@ -29,7 +32,7 @@ function DownloadBar({ source, result }: DownloadBarProps) {
 
   function handleDownload() {
     if (!result) return;
-    const filename = buildFilename(source.name, result.width, result.height, source.mime);
+    const filename = buildFilename(source.name, result.width, result.height, outputMime);
     triggerDownload(result.blob, filename);
 
     setJustDownloaded(true);

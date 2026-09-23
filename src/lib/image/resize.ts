@@ -28,7 +28,21 @@ function makeContext(width: number, height: number) {
 // needs upscaling) passes through untouched. This is what fixes the
 // aspect-changing-preset case that a shared `&&` condition breaks: one axis
 // can need eight halvings while the other needs none.
-export function resize(bitmap: ImageBitmap, targetWidth: number, targetHeight: number): ResizeOutput {
+// `background`, when given, is painted on the FINAL canvas before the
+// image is drawn onto it — never on the intermediate halving steps, which
+// must keep their alpha or the downscale would composite the matte
+// repeatedly and darken every soft edge.
+//
+// It exists because JPEG has no alpha: without an explicit fill, what a
+// transparent pixel becomes when encoded to JPEG is left to the browser
+// (black in some, white in others), which is the kind of silent,
+// unpredictable pixel change this app does not do.
+export function resize(
+  bitmap: ImageBitmap,
+  targetWidth: number,
+  targetHeight: number,
+  background?: string,
+): ResizeOutput {
   let current: CanvasImageSource = bitmap;
   let cw = bitmap.width;
   let ch = bitmap.height;
@@ -46,6 +60,10 @@ export function resize(bitmap: ImageBitmap, targetWidth: number, targetHeight: n
   }
 
   const finalCtx = makeContext(targetWidth, targetHeight);
+  if (background) {
+    finalCtx.fillStyle = background;
+    finalCtx.fillRect(0, 0, targetWidth, targetHeight);
+  }
   finalCtx.drawImage(current, 0, 0, targetWidth, targetHeight);
 
   return { canvas: finalCtx.canvas as Surface, steps };

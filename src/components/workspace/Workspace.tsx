@@ -6,27 +6,35 @@ import ResizeControls from './ResizeControls';
 import PresetGrid from './PresetGrid';
 import DownloadBar from './DownloadBar';
 import CompressControls from './CompressControls';
+import ConvertControls from './ConvertControls';
 import ToolTabs, { panelId, tabId, type Tool } from './ToolTabs';
 import FileError from '../upload/FileError';
+import { FORMAT_LABEL } from '../../lib/image/formats';
 import type { Preset } from '../../lib/presets';
 import type {
   AppError,
   CompressMode,
   CompressOutcome,
   CompressSettings,
+  ConvertSettings,
   ResizeResult,
   ResizeSettings,
   SizeUnit,
   SourceImage,
+  SupportedMime,
 } from '../../types';
 
 interface WorkspaceProps {
   source: SourceImage;
   settings: ResizeSettings;
   compress: CompressSettings;
+  convert: ConvertSettings;
   result: ResizeResult | null;
   compressOutcome: CompressOutcome | null;
   canCompress: boolean;
+  outputMime: SupportedMime;
+  encodable: SupportedMime[];
+  sourceHasAlpha: boolean | null;
   isProcessing: boolean;
   isSearching: boolean;
   isLoading: boolean;
@@ -46,6 +54,8 @@ interface WorkspaceProps {
   setTargetValue: (value: number) => void;
   setTargetUnit: (unit: SizeUnit) => void;
   resetCompress: () => void;
+  setFormat: (format: SupportedMime | null) => void;
+  setMatte: (colour: string) => void;
   runTargetSearch: () => void;
 }
 
@@ -62,9 +72,13 @@ function Workspace({
   source,
   settings,
   compress,
+  convert,
   result,
   compressOutcome,
   canCompress,
+  outputMime,
+  encodable,
+  sourceHasAlpha,
   isProcessing,
   isSearching,
   isLoading,
@@ -84,6 +98,8 @@ function Workspace({
   setTargetValue,
   setTargetUnit,
   resetCompress,
+  setFormat,
+  setMatte,
   runTargetSearch,
 }: WorkspaceProps) {
   // Which tool's settings are showing. Local to the workspace on purpose:
@@ -144,10 +160,12 @@ function Workspace({
               <PresetGrid presetId={settings.presetId} onApply={applyPreset} />
             </div>
           </>
-        ) : (
+        ) : tool === 'compress' ? (
           <div role="tabpanel" id={panelId('compress')} aria-labelledby={tabId('compress')} className="py-6">
             <CompressControls
               compress={compress}
+              outputLabel={FORMAT_LABEL[outputMime]}
+              convertingTo={convert.format !== null}
               result={result}
               outcome={compressOutcome}
               canCompress={canCompress}
@@ -158,6 +176,19 @@ function Workspace({
               setTargetUnit={setTargetUnit}
               resetCompress={resetCompress}
               runTargetSearch={runTargetSearch}
+            />
+          </div>
+        ) : (
+          <div role="tabpanel" id={panelId('convert')} aria-labelledby={tabId('convert')} className="py-6">
+            <ConvertControls
+              sourceMime={source.mime}
+              format={convert.format}
+              matte={convert.matte}
+              encodable={encodable}
+              outputMime={outputMime}
+              sourceHasAlpha={sourceHasAlpha}
+              setFormat={setFormat}
+              setMatte={setMatte}
             />
           </div>
         )}
@@ -173,7 +204,7 @@ function Workspace({
             className="sticky bottom-0 bg-paper lg:static"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
-            <DownloadBar source={source} result={result} />
+            <DownloadBar source={source} result={result} outputMime={outputMime} />
           </div>
         </div>
       </div>

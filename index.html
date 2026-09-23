@@ -119,7 +119,7 @@
             "name": "What file types can I resize?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "JPG, PNG and WEBP. The image you download is always the same format as the one you opened, so a PNG stays a PNG."
+              "text": "JPG, PNG and WEBP, and you can convert between them. By default the image you download is the same format as the one you opened; the Convert tab changes that if you want it to."
             }
           },
           {
@@ -144,6 +144,14 @@
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "No. Downsize is free, has no account, and adds no watermark. There is no paid tier to upgrade to."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What happens to transparency when I convert to JPG?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "JPG has no transparency, so the clear areas have to become a colour. Downsize checks whether the image actually has any transparent pixels, and only asks when it does. You pick the fill colour, because white is right for a logo on a white page and wrong for one on a coloured page."
             }
           },
           {
@@ -209,7 +217,8 @@
         Downsize changes the dimensions of a JPG, PNG or WEBP image using your browser's own image
         tools. The file is read from your device and worked on there — it is never sent to a server,
         and no copy of it exists anywhere but your own machine. Pick a width, or choose one of the
-        common sizes listed further down, and download the result.
+        common sizes listed further down. You can also compress it to a target file size, or convert
+        between JPG, PNG and WEBP, and download the result.
       </p>
 
       <h2 id="how-it-works">How to resize an image</h2>
@@ -422,8 +431,8 @@
 
       <h3>What file types can I resize?</h3>
       <p>
-        JPG, PNG and WEBP. The image you download is always the same format as the one you opened,
-        so a PNG stays a PNG.
+        JPG, PNG and WEBP, and you can convert between them. By default the image you download is
+        the same format as the one you opened; the Convert tab changes that if you want it to.
       </p>
 
       <h3>Is there a file size limit?</h3>
@@ -443,6 +452,14 @@
       <p>
         No. Downsize is free, has no account, and adds no watermark. There is no paid tier to
         upgrade to.
+      </p>
+
+      <h3>What happens to transparency when I convert to JPG?</h3>
+      <p>
+        JPG has no transparency, so the clear areas have to become a colour. Downsize checks whether
+        the image actually has any transparent pixels, and only asks when it does. You pick the fill
+        colour, because white is right for a logo on a white page and wrong for one on a coloured
+        page.
       </p>
 
       <h3>Does Downsize work offline?</h3>

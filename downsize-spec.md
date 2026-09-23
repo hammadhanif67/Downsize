@@ -36,7 +36,7 @@ The defining property — and the thing the marketing copy and the architecture 
 
 Do not build these. Do not add nav items, tabs, or dead buttons for them.
 
-- Format conversion (JPG ↔ PNG ↔ WEBP)
+
 - Cropping, rotation, filters
 - AI assistance, any LLM integration
 - Batch / multi-file processing
@@ -61,7 +61,42 @@ order — resize, then encode at the chosen quality — and there is one result
 object and one download. Switching tabs changes which settings are on screen
 and nothing else.
 
-Output format still MUST match the input format.
+**Amended 2026-09-23 — Phase C.** Format conversion moves into scope, and the
+"output format MUST match the input format" invariant is retired with it. It
+held from v1 through Phase B.5 and is now wrong in three places that had to
+change together: this section, the FAQ answer on the page, and that answer's
+twin in the FAQPage JSON-LD.
+
+The default is still to keep the source format — conversion is something you
+ask for, not something that happens. AI assist remains out of scope.
+
+**JPEG has no alpha channel**, so converting to it is the one direction that
+can destroy information the rest of the pipeline preserves. Three rules:
+
+- **Detect, do not assume.** Most PNGs are opaque, and a warning that fires
+  on every PNG is noise. Noise gets ignored, and then the one that mattered
+  gets ignored too. `lib/image/client.ts` scans for a genuinely transparent
+  pixel and caches the answer per image.
+- **Scan lazily and cheaply.** Only when JPEG is selected, which cannot
+  happen without opening the Convert tab, and only for a source format that
+  can carry alpha. In the worker, reading horizontal strips with an
+  early exit — a logo on transparency answers in the first strip, and a
+  fully opaque image is the only one that pays the whole cost.
+- **Ask for the colour.** White is right for a logo on a white page and
+  wrong for one on a coloured page, and only the user knows which. Two
+  swatches plus a native `<input type="color">`; no picker library.
+
+Never flatten silently. That is the same class of harm as re-encoding an
+untouched file (6.10).
+
+**Encode support is probed, not assumed.** `canvas.toBlob` and
+`convertToBlob` fall back to PNG for a type they cannot write, silently and
+with no error — so offering WEBP on a browser that can decode but not encode
+it would hand back PNG bytes in a file named `.webp`. `lib/image/formats.ts`
+encodes a 1x1 once per format and checks the returned `blob.type`. Note that
+the probe surface needs a 2D context first: `convertToBlob` throws
+`InvalidStateError` on a canvas that has never had one, which made every
+format fail the probe and looked exactly like a PNG-only browser.
 
 ---
 
@@ -792,6 +827,22 @@ Ship only when all of these pass:
 - [ ] Each preset produces exactly its stated dimensions
 - [ ] Downloaded filename follows `name-WxH.ext`
 - [ ] Loading a second image releases the first (check memory in DevTools)
+
+**Conversion**
+- [ ] The format list contains only formats this browser can actually ENCODE,
+      verified by the returned `blob.type` rather than assumed
+- [ ] The source's own format is not offered twice — "Keep original (PNG)"
+      already is that option
+- [ ] An OPAQUE PNG converted to JPG shows no transparency warning at all.
+      This is the point of detecting rather than assuming
+- [ ] A TRANSPARENT PNG converted to JPG shows the warning and the fill
+      control, and changing the fill colour changes the output bytes
+- [ ] A JPG source never triggers an alpha scan in any direction
+- [ ] Converting to PNG turns the quality control off; converting to JPG or
+      WEBP turns it on. Keyed off the OUTPUT format, never the source
+- [ ] The download extension follows the output format
+- [ ] "Keep original" still passes through byte-identically, and selecting a
+      format and then going back to "Keep original" returns to pass-through
 
 **Compression**
 - [ ] **Loading an image and changing nothing produces a byte-identical download

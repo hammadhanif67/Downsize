@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supportsQuality } from '../lib/image/encode';
+import { encodableFormats, hasAlphaChannel } from '../lib/image/formats';
 // Aliased: this hook already exposes a callback named runTargetSearch,
 // and the collision resolved silently in favour of the local const.
 import {
   beginRequest,
   isSuperseded,
+  imageHasAlpha,
   runEncode,
   runTargetSearch as runSearchJob,
 } from '../lib/image/client';
@@ -16,10 +18,12 @@ import type {
   CompressMode,
   CompressOutcome,
   CompressSettings,
+  ConvertSettings,
   ResizeResult,
   ResizeSettings,
   SizeUnit,
   SourceImage,
+  SupportedMime,
 } from '../types';
 
 function defaultSettingsFor(source: SourceImage): ResizeSettings {
@@ -49,6 +53,8 @@ const DEFAULT_COMPRESS: CompressSettings = {
   targetUnit: 'KB',
 };
 
+const DEFAULT_CONVERT: ConvertSettings = { format: null, matte: '#ffffff' };
+
 const BYTES_PER: Record<SizeUnit, number> = { KB: 1024, MB: 1024 * 1024 };
 
 export function targetBytesOf(compress: CompressSettings): number {
@@ -60,13 +66,21 @@ export function targetBytesOf(compress: CompressSettings): number {
 // skips if nothing that affects the bytes has changed — so toggling Lock
 // ratio, or a target search writing its found quality back into settings,
 // does not trigger a redundant full encode.
-function signatureOf(width: number, height: number, quality: number | undefined, passThrough: boolean): string {
-  return passThrough ? 'source' : `${width}x${height}@${quality ?? 'default'}`;
+function signatureOf(
+  width: number,
+  height: number,
+  quality: number | undefined,
+  mime: string,
+  background: string | undefined,
+  passThrough: boolean,
+): string {
+  return passThrough ? 'source' : `${width}x${height}@${quality ?? 'default'}/${mime}/${background ?? '-'}`;
 }
 
 export interface ImagePipeline {
   settings: ResizeSettings;
   compress: CompressSettings;
+  convert: ConvertSettings;
   result: ResizeResult | null;
   // Describes the last target-size search, or null if the current output
   // did not come from one. Cleared as soon as anything else regenerates
@@ -76,6 +90,15 @@ export interface ImagePipeline {
   // False for PNG. Lossless, no quality axis — the panel says so rather
   // than offering a slider that does nothing.
   canCompress: boolean;
+  // The format the download will actually be, which is the source's
+  // unless a conversion was asked for. Everything downstream reads this
+  // rather than source.mime: the quality control, the filename, the
+  // savings line.
+  outputMime: SupportedMime;
+  encodable: SupportedMime[];
+  // null while unknown or not yet asked. Only ever asked for an
+  // alpha-capable source with JPEG selected.
+  sourceHasAlpha: boolean | null;
   isProcessing: boolean;
   isSearching: boolean;
   // Not in the spec's literal §8 list, but encode() can genuinely fail
@@ -96,6 +119,8 @@ export interface ImagePipeline {
   setTargetValue: (value: number) => void;
   setTargetUnit: (unit: SizeUnit) => void;
   resetCompress: () => void;
+  setFormat: (format: SupportedMime | null) => void;
+  setMatte: (colour: string) => void;
   // Explicit press only — never debounced. A search is up to eight full
   // encodes, and running that per keystroke is abusive on a large image.
   runTargetSearch: () => void;
@@ -115,16 +140,50 @@ export interface ImagePipeline {
 export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   const [settings, setSettings] = useState<ResizeSettings>(EMPTY_SETTINGS);
   const [compress, setCompress] = useState<CompressSettings>(DEFAULT_COMPRESS);
+  const [convert, setConvert] = useState<ConvertSettings>(DEFAULT_CONVERT);
+  const [encodable, setEncodable] = useState<SupportedMime[]>([]);
+  const [sourceHasAlpha, setSourceHasAlpha] = useState<boolean | null>(null);
   const [result, setResult] = useState<ResizeResult | null>(null);
   const [compressOutcome, setCompressOutcome] = useState<CompressOutcome | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
 
-  const canCompress = source !== null && supportsQuality(source.mime);
+  const outputMime: SupportedMime = convert.format ?? source?.mime ?? 'image/jpeg';
+  // Keyed off the OUTPUT format, not the source: converting a JPG to PNG
+  // removes the quality axis, and converting a PNG to JPG adds one.
+  const canCompress = source !== null && supportsQuality(outputMime);
   // PNG has no quality axis, so it is not merely that the slider is
   // disabled — nothing downstream is allowed to pass a quality at all.
   const effectiveQuality = canCompress ? compress.quality : undefined;
+
+  // Only JPEG loses alpha, and only a source that carries an alpha
+  // channel has any to lose. A JPG source never needs asking.
+  const mayLoseAlpha = source !== null && outputMime === 'image/jpeg' && hasAlphaChannel(source.mime);
+  // Unknown yet. The encode is held rather than run without the matte
+  // and then repeated — one flash of a wrongly-filled image is worse
+  // than a moment of spinner.
+  const alphaPending = mayLoseAlpha && sourceHasAlpha === null;
+  const background = mayLoseAlpha && sourceHasAlpha === true ? convert.matte : undefined;
+
+  useEffect(() => {
+    void encodableFormats().then((set) => setEncodable([...set]));
+  }, []);
+
+  // Lazy on purpose: asked only once JPEG is selected, which cannot
+  // happen without opening the Convert tab. A session that never
+  // converts never scans a pixel, and the client caches the answer per
+  // image because it cannot change for a given file.
+  useEffect(() => {
+    if (!source || !mayLoseAlpha || sourceHasAlpha !== null) return;
+    let live = true;
+    void imageHasAlpha(source.imageId).then((value) => {
+      if (live) setSourceHasAlpha(value);
+    });
+    return () => {
+      live = false;
+    };
+  }, [source, mayLoseAlpha, sourceHasAlpha]);
 
   // Bumped only when a debounced resize actually STARTS (inside the
   // setTimeout below), not on every settings change. A plain debounce
@@ -173,6 +232,8 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   useEffect(() => {
     setSettings(source ? defaultSettingsFor(source) : EMPTY_SETTINGS);
     setCompress(DEFAULT_COMPRESS);
+    setConvert(DEFAULT_CONVERT);
+    setSourceHasAlpha(null);
     setCompressOutcome(null);
     lastSignatureRef.current = null;
     setError(null);
@@ -196,6 +257,9 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   // runs, this goes false and normal encoding resumes.
   const isPassThrough =
     source !== null &&
+    // Any conversion at all makes the output a different file by
+    // definition, so there is nothing to pass through.
+    convert.format === null &&
     compressOutcome === null &&
     compress.quality === DEFAULT_QUALITY &&
     (() => {
@@ -218,10 +282,13 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
   // the stale timer this instance just started, before it ever fires.
   useEffect(() => {
     if (!source) return;
+    // Waiting on the alpha scan. Encoding now would produce a JPEG with
+    // the wrong fill and replace it a moment later.
+    if (alphaPending) return;
 
     const timeoutId = window.setTimeout(async () => {
       const { width, height } = resolveTargetSize(settings, source.width, source.height);
-      const signature = signatureOf(width, height, effectiveQuality, isPassThrough);
+      const signature = signatureOf(width, height, effectiveQuality, outputMime, background, isPassThrough);
 
       // Nothing that affects the bytes has changed. Toggling Lock ratio,
       // or a target search writing its found quality back into settings,
@@ -265,8 +332,9 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
         source.imageId,
         width,
         height,
-        source.mime,
+        outputMime,
         effectiveQuality,
+        background,
       );
 
       // Superseded by a newer request that started while this one was
@@ -303,7 +371,7 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
     // none of them changes the bytes, and listing them would make typing
     // in the target field start an encode — the exact thing the explicit
     // button exists to avoid.
-  }, [settings, effectiveQuality, isPassThrough, source]);
+  }, [settings, effectiveQuality, outputMime, background, alphaPending, isPassThrough, source]);
 
   // Raw setters — no clamping here on purpose (spec §9.3: clamp on blur,
   // not on keystroke). Aspect-lock derives the paired axis from the
@@ -425,10 +493,20 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
     setCompressOutcome(null);
   }, []);
 
+  const setFormat = useCallback((format: SupportedMime | null) => {
+    setConvert((prev) => ({ ...prev, format }));
+    setCompressOutcome(null);
+  }, []);
+
+  const setMatte = useCallback((matte: string) => {
+    setConvert((prev) => ({ ...prev, matte }));
+    setCompressOutcome(null);
+  }, []);
+
   // Runs on an explicit press. Same request counter as the debounced path,
   // so whichever started last wins regardless of which finishes first.
   const runTargetSearch = useCallback(() => {
-    if (!source || !supportsQuality(source.mime)) return;
+    if (!source || !supportsQuality(outputMime)) return;
 
     const requestId = beginRequest();
     searchOwnerRef.current = requestId;
@@ -442,8 +520,9 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
         source.imageId,
         width,
         height,
-        source.mime,
+        outputMime,
         targetBytes,
+        background,
       );
 
       // Clear the spinner whenever THIS search still owns it — including
@@ -462,7 +541,7 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
       // Write the answer back into the one quality the app has. The
       // signature is stored first so the effect this setCompress is about
       // to wake sees its work already done and returns without re-encoding.
-      lastSignatureRef.current = signatureOf(width, height, found.quality, false);
+      lastSignatureRef.current = signatureOf(width, height, found.quality, outputMime, background, false);
       setCompress((prev) => ({ ...prev, quality: found.quality }));
       setCompressOutcome({
         quality: found.quality,
@@ -482,14 +561,18 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
         };
       });
     })();
-  }, [compress, settings, source]);
+  }, [background, compress, outputMime, settings, source]);
 
   return {
     settings,
     compress,
+    convert,
     result,
     compressOutcome,
     canCompress,
+    outputMime,
+    encodable,
+    sourceHasAlpha,
     isProcessing,
     isSearching,
     error,
@@ -505,6 +588,8 @@ export function useImagePipeline(source: SourceImage | null): ImagePipeline {
     setTargetValue,
     setTargetUnit,
     resetCompress,
+    setFormat,
+    setMatte,
     runTargetSearch,
   };
 }
