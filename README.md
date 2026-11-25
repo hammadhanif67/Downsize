@@ -4,6 +4,8 @@
 
 🔗 **Live:** https://downsize-alpha.vercel.app
 
+![Downsize: screenshot of the live site](.github/assets/preview.jpg)
+
 Downsize is a single-page image tool for people who need a correctly sized image right now: social media managers, bloggers, store owners, students uploading a form photo. All processing happens locally with the Canvas API, so there is no backend, no queue, no storage and no account.
 
 ## Features
